@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 
-export type Phase = "connecting" | "lobby" | "playing" | "reveal";
+export type Phase = "connecting" | "lobby" | "playing" | "won";
 
 export interface Player {
   id: string;
@@ -10,27 +10,21 @@ export interface Player {
   submitted: boolean;
 }
 
-export interface Submission {
-  name: string;
-  word: string;
+export interface RoundEntry {
+  submissions: { name: string; word: string }[];
+  won: boolean;
 }
 
 export interface GameState {
   phase: Phase;
   players: Player[];
-  wins: number;
-  rounds: number;
-  submissions: Submission[];
-  won: boolean;
+  roundHistory: RoundEntry[];
 }
 
 const INITIAL_STATE: GameState = {
   phase: "connecting",
   players: [],
-  wins: 0,
-  rounds: 0,
-  submissions: [],
-  won: false,
+  roundHistory: [],
 };
 
 const PING_INTERVAL_MS = 20_000;
@@ -42,7 +36,6 @@ export function useGameRoom(roomCode: string, playerName: string) {
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const mountedRef = useRef(true);
-
   const sendRef = useRef<(msg: object) => void>(() => {});
 
   useEffect(() => {
@@ -86,26 +79,11 @@ export function useGameRoom(roomCode: string, playerName: string) {
         }
 
         if (data.type === "state") {
-          setState((prev) => ({
-            ...prev,
+          setState({
             phase: data.phase,
             players: data.players,
-            wins: data.wins,
-            rounds: data.rounds,
-            submissions: [],
-            won: false,
-          }));
-        }
-
-        if (data.type === "reveal") {
-          setState((prev) => ({
-            ...prev,
-            phase: "reveal",
-            submissions: data.submissions,
-            won: data.won,
-            wins: data.wins,
-            rounds: data.rounds,
-          }));
+            roundHistory: data.roundHistory ?? [],
+          });
         }
       };
 
@@ -138,7 +116,6 @@ export function useGameRoom(roomCode: string, playerName: string) {
     connected,
     start: () => send({ type: "start" }),
     submit: (word: string) => send({ type: "submit", word }),
-    nextRound: () => send({ type: "nextRound" }),
     reset: () => send({ type: "reset" }),
   };
 }

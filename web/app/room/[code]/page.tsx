@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useGameRoom } from "@/hooks/useGameRoom";
 import Lobby from "@/components/Lobby";
 import Playing from "@/components/Playing";
-import Reveal from "@/components/Reveal";
+import Won from "@/components/Won";
 
 export default function RoomPage() {
   const { code } = useParams<{ code: string }>();
@@ -22,10 +22,7 @@ export default function RoomPage() {
     }
   }, []);
 
-  const { state, error, connected, start, submit, nextRound, reset } = useGameRoom(
-    code,
-    playerName
-  );
+  const { state, error, connected, start, submit, reset } = useGameRoom(code, playerName);
 
   function confirmName() {
     const trimmed = nameInput.trim();
@@ -35,12 +32,13 @@ export default function RoomPage() {
     setNameSet(true);
   }
 
-  // Name gate
   if (!nameSet) {
     return (
       <main className="min-h-screen flex items-center justify-center px-6">
         <div className="w-full max-w-sm animate-fade-up space-y-4">
-          <h2 className="text-2xl font-bold">Join room <span className="font-mono text-[var(--accent)]">{code}</span></h2>
+          <h2 className="text-2xl font-bold">
+            Join room <span className="font-mono text-[var(--accent)]">{code}</span>
+          </h2>
           <input
             type="text"
             value={nameInput}
@@ -57,7 +55,10 @@ export default function RoomPage() {
           >
             Join
           </button>
-          <button onClick={() => router.push("/")} className="w-full text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
+          <button
+            onClick={() => router.push("/")}
+            className="w-full text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+          >
             ← Back
           </button>
         </div>
@@ -75,7 +76,7 @@ export default function RoomPage() {
           ← leave
         </button>
         <span className={`text-xs font-mono ${connected ? "text-green-500" : "text-[var(--muted)]"}`}>
-          {connected ? "connected" : "connecting…"}
+          {connected ? code : "connecting…"}
         </span>
       </div>
 
@@ -90,21 +91,16 @@ export default function RoomPage() {
       {state.phase === "playing" && (
         <Playing
           players={state.players}
-          wins={state.wins}
-          rounds={state.rounds}
+          roundHistory={state.roundHistory}
           error={error}
           onSubmit={submit}
           myName={playerName}
         />
       )}
 
-      {state.phase === "reveal" && (
-        <Reveal
-          submissions={state.submissions}
-          won={state.won}
-          wins={state.wins}
-          rounds={state.rounds}
-          onNextRound={nextRound}
+      {state.phase === "won" && (
+        <Won
+          roundHistory={state.roundHistory}
           onReset={reset}
         />
       )}

@@ -1,15 +1,17 @@
 import { DurableObject } from "cloudflare:workers";
 
+interface RoundEntry {
+  submissions: { name: string; word: string }[];
+  won: boolean;
+}
+
 interface PersistedState {
-  phase: "lobby" | "playing" | "reveal";
+  phase: "lobby" | "playing" | "won";
   playerNames: Record<string, string>;
   playerSubmitted: Record<string, boolean>;
   usedWords: string[];
   currentSubmissions: Record<string, string>;
-  lastSubmissions: { name: string; word: string }[];
-  lastWon: boolean;
-  wins: number;
-  rounds: number;
+  roundHistory: RoundEntry[];
 }
 
 const DEFAULT_STATE: PersistedState = {
@@ -18,17 +20,13 @@ const DEFAULT_STATE: PersistedState = {
   playerSubmitted: {},
   usedWords: [],
   currentSubmissions: {},
-  lastSubmissions: [],
-  lastWon: false,
-  wins: 0,
-  rounds: 0,
+  roundHistory: [],
 };
 
 type ClientMessage =
   | { type: "join"; playerName: string }
   | { type: "start" }
   | { type: "submit"; word: string }
-  | { type: "nextRound" }
   | { type: "reset" }
   | { type: "ping" };
 
@@ -39,8 +37,7 @@ export class GameRoom extends DurableObject {
     }
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
-    const playerId = crypto.randomUUID();
-    this.ctx.acceptWebSocket(server, [playerId]);
+    this.ctx.acceptWebSocket(server, [crypto.randomUUID()]);
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -72,8 +69,7 @@ export class GameRoom extends DurableObject {
         name: state.playerNames[id] ?? "Unknown",
         submitted: state.playerSubmitted[id] ?? false,
       })),
-      wins: state.wins,
-      rounds: state.rounds,
+      roundHistory: state.roundHistory,
     });
   }
 
@@ -97,17 +93,6 @@ export class GameRoom extends DurableObject {
           state.playerSubmitted[playerId] = false;
         }
         await this.save(state);
-
-        // Send current state — if in reveal, send the reveal event too
-        if (state.phase === "reveal") {
-          ws.send(JSON.stringify({
-            type: "reveal",
-            submissions: state.lastSubmissions,
-            won: state.lastWon,
-            wins: state.wins,
-            rounds: state.rounds,
-          }));
-        }
         this.broadcastState(state);
         break;
       }
@@ -127,14 +112,15 @@ export class GameRoom extends DurableObject {
         const word = data.word.trim().toLowerCase();
         if (!word) return;
 
+        // Only reject words used in PREVIOUS rounds — same word by multiple
+        // players in the same round is how you win
         if (state.usedWords.includes(word)) {
-          ws.send(JSON.stringify({ type: "error", message: `"${word}" has already been used this game.` }));
+          ws.send(JSON.stringify({ type: "error", message: `"${word}" was used in a previous round.` }));
           return;
         }
 
         state.playerSubmitted[playerId] = true;
         state.currentSubmissions[playerId] = word;
-        state.usedWords.push(word);
         await this.save(state);
 
         const ids = this.connectedIds();
@@ -144,16 +130,6 @@ export class GameRoom extends DurableObject {
         } else {
           this.broadcastState(state);
         }
-        break;
-      }
-
-      case "nextRound": {
-        if (state.phase !== "reveal") return;
-        state.phase = "playing";
-        state.currentSubmissions = {};
-        for (const id of this.connectedIds()) state.playerSubmitted[id] = false;
-        await this.save(state);
-        this.broadcastState(state);
         break;
       }
 
@@ -173,9 +149,6 @@ export class GameRoom extends DurableObject {
   }
 
   private async resolveRound(state: PersistedState): Promise<void> {
-    state.phase = "reveal";
-    state.rounds++;
-
     const submissions = Object.entries(state.currentSubmissions).map(([id, word]) => ({
       name: state.playerNames[id] ?? "Unknown",
       word,
@@ -183,13 +156,25 @@ export class GameRoom extends DurableObject {
 
     const words = submissions.map((s) => s.word);
     const won = words.length >= 2 && words.every((w) => w === words[0]);
-    if (won) state.wins++;
 
-    state.lastSubmissions = submissions;
-    state.lastWon = won;
+    // Add all submitted words to usedWords now (after resolution)
+    for (const word of words) {
+      if (!state.usedWords.includes(word)) state.usedWords.push(word);
+    }
+
+    state.roundHistory.push({ submissions, won });
+
+    if (won) {
+      state.phase = "won";
+    } else {
+      // Auto-advance to next round
+      state.phase = "playing";
+      state.currentSubmissions = {};
+      for (const id of this.connectedIds()) state.playerSubmitted[id] = false;
+    }
 
     await this.save(state);
-    this.broadcast({ type: "reveal", submissions, won, wins: state.wins, rounds: state.rounds });
+    this.broadcastState(state);
   }
 
   async webSocketClose(ws: WebSocket): Promise<void> {
@@ -201,18 +186,15 @@ export class GameRoom extends DurableObject {
 
     const remaining = this.connectedIds();
 
-    // If everyone left, reset phase to lobby
     if (remaining.length === 0) {
       state.phase = "lobby";
       await this.save(state);
       return;
     }
 
-    // If playing and all remaining players have submitted, resolve
     if (state.phase === "playing" && remaining.length > 0) {
       const allDone = remaining.every((id) => state.playerSubmitted[id]);
       if (allDone && Object.keys(state.currentSubmissions).length > 0) {
-        // Remove the disconnected player's submission too
         delete state.currentSubmissions[playerId];
         await this.save(state);
         await this.resolveRound(state);
@@ -244,14 +226,12 @@ export default {
         },
       });
     }
-
     const url = new URL(request.url);
     const match = url.pathname.match(/^\/room\/([A-Z0-9]{4})\/ws$/);
     if (match) {
       const id = env.GAME_ROOM.idFromName(match[1]);
       return env.GAME_ROOM.get(id).fetch(request);
     }
-
     return new Response("Not found", { status: 404 });
   },
 };

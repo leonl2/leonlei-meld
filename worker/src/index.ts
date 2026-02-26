@@ -64,11 +64,13 @@ export class GameRoom extends DurableObject {
     this.broadcast({
       type: "state",
       phase: state.phase,
-      players: this.connectedIds().map((id) => ({
-        id,
-        name: state.playerNames[id] ?? "Unknown",
-        submitted: state.playerSubmitted[id] ?? false,
-      })),
+      players: this.connectedIds()
+        .filter((id) => state.playerNames[id] !== undefined)
+        .map((id) => ({
+          id,
+          name: state.playerNames[id],
+          submitted: state.playerSubmitted[id] ?? false,
+        })),
       roundHistory: state.roundHistory,
     });
   }
@@ -134,11 +136,11 @@ export class GameRoom extends DurableObject {
       }
 
       case "reset": {
-        const ids = this.connectedIds();
+        const ids = this.connectedIds().filter((id) => state.playerNames[id] !== undefined);
         const fresh: PersistedState = {
           ...DEFAULT_STATE,
           phase: "playing",
-          playerNames: Object.fromEntries(ids.map((id) => [id, state.playerNames[id] ?? "Unknown"])),
+          playerNames: Object.fromEntries(ids.map((id) => [id, state.playerNames[id]])),
           playerSubmitted: Object.fromEntries(ids.map((id) => [id, false])),
         };
         await this.save(fresh);
@@ -183,6 +185,7 @@ export class GameRoom extends DurableObject {
 
     delete state.playerNames[playerId];
     delete state.playerSubmitted[playerId];
+    delete state.currentSubmissions[playerId];
 
     const remaining = this.connectedIds();
 
@@ -195,7 +198,6 @@ export class GameRoom extends DurableObject {
     if (state.phase === "playing" && remaining.length > 0) {
       const allDone = remaining.every((id) => state.playerSubmitted[id]);
       if (allDone && Object.keys(state.currentSubmissions).length > 0) {
-        delete state.currentSubmissions[playerId];
         await this.save(state);
         await this.resolveRound(state);
         return;

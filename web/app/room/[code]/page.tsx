@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useGameRoom } from "@/hooks/useGameRoom";
 import Lobby from "@/components/Lobby";
@@ -10,17 +10,13 @@ import Won from "@/components/Won";
 export default function RoomPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const [playerName, setPlayerName] = useState("");
+  const [playerName, setPlayerName] = useState(
+    () => sessionStorage.getItem("meld_name") ?? ""
+  );
   const [nameInput, setNameInput] = useState("");
-  const [nameSet, setNameSet] = useState(false);
-
-  useEffect(() => {
-    const stored = sessionStorage.getItem("meld_name");
-    if (stored) {
-      setPlayerName(stored);
-      setNameSet(true);
-    }
-  }, []);
+  const [nameSet, setNameSet] = useState(
+    () => !!sessionStorage.getItem("meld_name")
+  );
 
   const { state, error, connected, start, submit, reset } = useGameRoom(code, playerName);
 

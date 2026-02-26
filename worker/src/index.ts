@@ -14,15 +14,6 @@ interface PersistedState {
   roundHistory: RoundEntry[];
 }
 
-const DEFAULT_STATE: PersistedState = {
-  phase: "lobby",
-  playerNames: {},
-  playerSubmitted: {},
-  usedWords: [],
-  currentSubmissions: {},
-  roundHistory: [],
-};
-
 type ClientMessage =
   | { type: "join"; playerName: string }
   | { type: "start" }
@@ -42,7 +33,16 @@ export class GameRoom extends DurableObject {
   }
 
   private async load(): Promise<PersistedState> {
-    return (await this.ctx.storage.get<PersistedState>("state")) ?? { ...DEFAULT_STATE };
+    return (
+      (await this.ctx.storage.get<PersistedState>("state")) ?? {
+        phase: "lobby",
+        playerNames: {},
+        playerSubmitted: {},
+        usedWords: [],
+        currentSubmissions: {},
+        roundHistory: [],
+      }
+    );
   }
 
   private async save(state: PersistedState): Promise<void> {
@@ -138,10 +138,12 @@ export class GameRoom extends DurableObject {
       case "reset": {
         const ids = this.connectedIds().filter((id) => state.playerNames[id] !== undefined);
         const fresh: PersistedState = {
-          ...DEFAULT_STATE,
           phase: "playing",
           playerNames: Object.fromEntries(ids.map((id) => [id, state.playerNames[id]])),
           playerSubmitted: Object.fromEntries(ids.map((id) => [id, false])),
+          usedWords: [],
+          currentSubmissions: {},
+          roundHistory: [],
         };
         await this.save(fresh);
         this.broadcastState(fresh);

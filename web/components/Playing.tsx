@@ -25,12 +25,14 @@ export default function Playing({ players, roundHistory, error, onSubmit, myName
   const hasSubmitted = me?.submitted ?? false;
   const submittedCount = players.filter((p) => p.submitted).length;
 
-  // Re-focus input when a new round starts (history length increases)
+  // Re-focus input and clear word when a new round starts (history length increases)
   useEffect(() => {
     if (roundHistory.length > prevHistoryLen.current) {
       prevHistoryLen.current = roundHistory.length;
-      setWord("");
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setTimeout(() => {
+        setWord("");
+        inputRef.current?.focus();
+      }, 50);
     }
   }, [roundHistory.length]);
 

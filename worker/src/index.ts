@@ -1,7 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 
 interface RoundEntry {
-  submissions: { name: string; word: string }[];
+  submissions: { id: string; name: string; word: string }[];
   won: boolean;
 }
 
@@ -95,6 +95,7 @@ export class GameRoom extends DurableObject {
           state.playerSubmitted[playerId] = false;
         }
         await this.save(state);
+        ws.send(JSON.stringify({ type: "welcome", playerId }));
         this.broadcastState(state);
         break;
       }
@@ -154,6 +155,7 @@ export class GameRoom extends DurableObject {
 
   private async resolveRound(state: PersistedState): Promise<void> {
     const submissions = Object.entries(state.currentSubmissions).map(([id, word]) => ({
+      id,
       name: state.playerNames[id] ?? "Unknown",
       word,
     }));

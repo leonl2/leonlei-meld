@@ -18,7 +18,7 @@ export default function RoomPage() {
     () => !!sessionStorage.getItem("meld_name")
   );
 
-  const { state, error, connected, start, submit, reset } = useGameRoom(code, playerName);
+  const { state, error, connected, myId, start, submit, reset } = useGameRoom(code, playerName);
 
   function confirmName() {
     const trimmed = nameInput.trim();
@@ -90,7 +90,7 @@ export default function RoomPage() {
           roundHistory={state.roundHistory}
           error={error}
           onSubmit={submit}
-          myName={playerName}
+          myId={myId}
         />
       )}
 

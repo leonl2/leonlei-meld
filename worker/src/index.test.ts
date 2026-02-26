@@ -162,6 +162,15 @@ describe("join", () => {
     await send(room, ws, { type: "join", playerName: "Alicia" });
     expect(getState().playerNames["p1"]).toBe("Alicia");
   });
+
+  it("sends a welcome message with the player's id after joining", async () => {
+    const { room, connect } = createTestRoom();
+    const ws = connect("p1");
+    await send(room, ws, { type: "join", playerName: "Alice" });
+    const welcomeMsg = allMessages(ws).find((m: any) => m.type === "welcome");
+    expect(welcomeMsg).toBeDefined();
+    expect(welcomeMsg.playerId).toBe("p1");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -295,6 +304,16 @@ describe("resolveRound", () => {
     const nameWordPairs = round.submissions.map((s: any) => [s.name, s.word]);
     expect(nameWordPairs).toContainEqual(["Alice", "apple"]);
     expect(nameWordPairs).toContainEqual(["Bob", "banana"]);
+  });
+
+  it("includes the player id in each submission in round history", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    await send(env.room, env.ws2, { type: "submit", word: "banana" });
+    const round = env.getState().roundHistory[0];
+    const idWordPairs = round.submissions.map((s: any) => [s.id, s.word]);
+    expect(idWordPairs).toContainEqual(["p1", "apple"]);
+    expect(idWordPairs).toContainEqual(["p2", "banana"]);
   });
 
   it("adds submitted words to usedWords to prevent reuse", async () => {

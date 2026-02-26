@@ -10,8 +10,17 @@ interface Props {
 export default function Lobby({ roomCode, players, onStart }: Props) {
   const [copied, setCopied] = useState(false);
 
-  function copyCode() {
-    navigator.clipboard.writeText(roomCode);
+  async function share() {
+    const url = `${window.location.origin}/room/${roomCode}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Join my Meld room", url });
+        return;
+      } catch {
+        // User cancelled or share failed — fall through to clipboard
+      }
+    }
+    navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -23,16 +32,16 @@ export default function Lobby({ roomCode, players, onStart }: Props) {
           Room code
         </p>
         <button
-          onClick={copyCode}
+          onClick={share}
           className="group flex items-center gap-3"
-          title="Click to copy"
+          title="Click to share"
         >
           <span className="text-5xl font-bold tracking-widest font-mono">{roomCode}</span>
           <span className="text-xs font-mono text-[var(--muted)] group-hover:text-[var(--accent)] transition-colors">
-            {copied ? "copied!" : "copy"}
+            {copied ? "copied!" : "share"}
           </span>
         </button>
-        <p className="text-xs text-[var(--muted)] mt-2">Share this code with your friends to join.</p>
+        <p className="text-xs text-[var(--muted)] mt-2">Share this link with your friends to join.</p>
       </div>
 
       <div>

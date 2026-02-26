@@ -6,9 +6,9 @@ interface Props {
 }
 
 export default function Won({ roundHistory, onReset }: Props) {
-  // Derive unique player names in consistent order from first round
-  const playerNames = roundHistory.length > 0
-    ? roundHistory[0].submissions.map((s) => s.name)
+  // Derive player columns in consistent order from first round, keyed by id
+  const playerColumns = roundHistory.length > 0
+    ? roundHistory[0].submissions.map((s) => ({ id: s.id, name: s.name }))
     : [];
 
   const rounds = roundHistory.length;
@@ -33,12 +33,12 @@ export default function Won({ roundHistory, onReset }: Props) {
               <th className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 pr-4">
                 Round
               </th>
-              {playerNames.map((name) => (
+              {playerColumns.map((col) => (
                 <th
-                  key={name}
+                  key={col.id}
                   className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 px-4"
                 >
-                  {name}
+                  {col.name}
                 </th>
               ))}
             </tr>
@@ -54,10 +54,10 @@ export default function Won({ roundHistory, onReset }: Props) {
                 <td className="py-2.5 pr-4 font-mono text-xs text-[var(--muted)]">
                   {i + 1}
                 </td>
-                {playerNames.map((name) => {
-                  const sub = round.submissions.find((s) => s.name === name);
+                {playerColumns.map((col) => {
+                  const sub = round.submissions.find((s) => s.id === col.id);
                   return (
-                    <td key={name} className="py-2.5 px-4 font-mono font-semibold">
+                    <td key={col.id} className="py-2.5 px-4 font-mono font-semibold">
                       {sub?.word ?? "—"}
                       {round.won && " ✓"}
                     </td>

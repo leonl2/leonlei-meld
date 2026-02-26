@@ -59,9 +59,11 @@ describe("Lobby", () => {
     expect(onStart).toHaveBeenCalledOnce();
   });
 
-  it("copies the room code to the clipboard when the code is clicked", async () => {
+  it("copies the full room URL to the clipboard when the code is clicked", async () => {
     render(<Lobby roomCode="WOLF" players={PLAYERS_TWO} onStart={vi.fn()} />);
-    fireEvent.click(screen.getByTitle(/click to copy/i));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("WOLF");
+    fireEvent.click(screen.getByTitle(/click to share/i));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      expect.stringContaining("/room/WOLF")
+    );
   });
 });

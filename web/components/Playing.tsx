@@ -8,7 +8,7 @@ interface Props {
   roundHistory: RoundEntry[];
   error: string | null;
   onSubmit: (word: string) => void;
-  myName: string;
+  myId: string | null;
 }
 
 const HISTORY_VISIBLE = 4;
@@ -16,12 +16,12 @@ const HISTORY_VISIBLE = 4;
 const opacities = [1, 0.45, 0.2, 0.1];
 const sizes    = ["text-base", "text-sm", "text-xs", "text-xs"];
 
-export default function Playing({ players, roundHistory, error, onSubmit, myName }: Props) {
+export default function Playing({ players, roundHistory, error, onSubmit, myId }: Props) {
   const [word, setWord] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const prevHistoryLen = useRef(roundHistory.length);
 
-  const me = players.find((p) => p.name === myName);
+  const me = players.find((p) => p.id === myId);
   const hasSubmitted = me?.submitted ?? false;
   const submittedCount = players.filter((p) => p.submitted).length;
 
@@ -59,7 +59,7 @@ export default function Playing({ players, roundHistory, error, onSubmit, myName
             >
               <div className="flex flex-wrap gap-x-4 gap-y-0.5">
                 {round.submissions.map((s) => (
-                  <span key={s.name}>
+                  <span key={s.id}>
                     <span className="font-mono font-semibold">{s.word}</span>
                     {i === 0 && (
                       <span className="text-[var(--muted)] ml-1">({s.name})</span>

@@ -11,7 +11,7 @@ export interface Player {
 }
 
 export interface RoundEntry {
-  submissions: { name: string; word: string }[];
+  submissions: { id: string; name: string; word: string }[];
   won: boolean;
 }
 
@@ -35,6 +35,7 @@ export function useGameRoom(roomCode: string, playerName: string) {
   const [state, setState] = useState<GameState>(INITIAL_STATE);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [myId, setMyId] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const sendRef = useRef<(msg: object) => void>(() => {});
 
@@ -72,6 +73,11 @@ export function useGameRoom(roomCode: string, playerName: string) {
 
         if (data.type === "pong") return;
 
+        if (data.type === "welcome") {
+          setMyId(data.playerId);
+          return;
+        }
+
         if (data.type === "error") {
           setError(data.message);
           setTimeout(() => setError(null), 3000);
@@ -91,6 +97,7 @@ export function useGameRoom(roomCode: string, playerName: string) {
         clearInterval(pingTimer);
         if (!mountedRef.current) return;
         setConnected(false);
+        setMyId(null);
         setState((prev) => ({ ...prev, phase: "connecting" }));
         reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
       };
@@ -114,6 +121,7 @@ export function useGameRoom(roomCode: string, playerName: string) {
     state,
     error,
     connected,
+    myId,
     start: () => send({ type: "start" }),
     submit: (word: string) => send({ type: "submit", word }),
     reset: () => send({ type: "reset" }),

@@ -16,8 +16,8 @@ const PLAYERS_ALICE_SUBMITTED: Player[] = [
 const ROUND_HISTORY: RoundEntry[] = [
   {
     submissions: [
-      { name: "Alice", word: "apple" },
-      { name: "Bob", word: "banana" },
+      { id: "p1", name: "Alice", word: "apple" },
+      { id: "p2", name: "Bob", word: "banana" },
     ],
     won: false,
   },
@@ -32,7 +32,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error={null}
           onSubmit={vi.fn()}
-          myName="Alice"
+          myId="p1"
         />
       );
       expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -46,7 +46,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error={null}
           onSubmit={vi.fn()}
-          myName="Bob"
+          myId="p2"
         />
       );
       expect(screen.getByText("1/2")).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error={null}
           onSubmit={vi.fn()}
-          myName="Alice"
+          myId="p1"
         />
       );
       expect(screen.getByPlaceholderText(/type a word/i)).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error={null}
           onSubmit={vi.fn()}
-          myName="Alice"
+          myId="p1"
         />
       );
       expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
@@ -87,7 +87,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error={null}
           onSubmit={vi.fn()}
-          myName="Alice"
+          myId="p1"
         />
       );
       fireEvent.change(screen.getByPlaceholderText(/type a word/i), {
@@ -106,7 +106,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error={null}
           onSubmit={onSubmit}
-          myName="Alice"
+          myId="p1"
         />
       );
       fireEvent.change(screen.getByPlaceholderText(/type a word/i), {
@@ -124,7 +124,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error={null}
           onSubmit={onSubmit}
-          myName="Alice"
+          myId="p1"
         />
       );
       const input = screen.getByPlaceholderText(/type a word/i);
@@ -141,7 +141,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error={null}
           onSubmit={onSubmit}
-          myName="Alice"
+          myId="p1"
         />
       );
       fireEvent.keyDown(screen.getByPlaceholderText(/type a word/i), {
@@ -159,7 +159,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error={null}
           onSubmit={vi.fn()}
-          myName="Alice"
+          myId="p1"
         />
       );
       expect(
@@ -177,7 +177,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error='"apple" was used in a previous round.'
           onSubmit={vi.fn()}
-          myName="Alice"
+          myId="p1"
         />
       );
       expect(
@@ -192,7 +192,7 @@ describe("Playing", () => {
           roundHistory={[]}
           error={null}
           onSubmit={vi.fn()}
-          myName="Alice"
+          myId="p1"
         />
       );
       expect(
@@ -209,7 +209,7 @@ describe("Playing", () => {
           roundHistory={ROUND_HISTORY}
           error={null}
           onSubmit={vi.fn()}
-          myName="Alice"
+          myId="p1"
         />
       );
       expect(screen.getByText("apple")).toBeInTheDocument();
@@ -223,7 +223,7 @@ describe("Playing", () => {
           roundHistory={ROUND_HISTORY}
           error={null}
           onSubmit={vi.fn()}
-          myName="Alice"
+          myId="p1"
         />
       );
       expect(

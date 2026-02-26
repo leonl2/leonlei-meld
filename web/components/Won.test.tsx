@@ -7,15 +7,15 @@ import type { RoundEntry } from "@/hooks/useGameRoom";
 const ROUND_HISTORY_LOSS_THEN_WIN: RoundEntry[] = [
   {
     submissions: [
-      { name: "Alice", word: "apple" },
-      { name: "Bob", word: "banana" },
+      { id: "p1", name: "Alice", word: "apple" },
+      { id: "p2", name: "Bob", word: "banana" },
     ],
     won: false,
   },
   {
     submissions: [
-      { name: "Alice", word: "meld" },
-      { name: "Bob", word: "meld" },
+      { id: "p1", name: "Alice", word: "meld" },
+      { id: "p2", name: "Bob", word: "meld" },
     ],
     won: true,
   },
@@ -24,8 +24,8 @@ const ROUND_HISTORY_LOSS_THEN_WIN: RoundEntry[] = [
 const SINGLE_WIN: RoundEntry[] = [
   {
     submissions: [
-      { name: "Alice", word: "meld" },
-      { name: "Bob", word: "meld" },
+      { id: "p1", name: "Alice", word: "meld" },
+      { id: "p2", name: "Bob", word: "meld" },
     ],
     won: true,
   },
@@ -89,5 +89,20 @@ describe("Won", () => {
     render(<Won roundHistory={[]} onReset={vi.fn()} />);
     expect(screen.getByText("Meld!")).toBeInTheDocument();
     expect(screen.getByText(/0 rounds/i)).toBeInTheDocument();
+  });
+
+  it("correctly assigns words to the right player when names are identical", () => {
+    const duplicateNames: RoundEntry[] = [
+      {
+        submissions: [
+          { id: "p1", name: "Alice", word: "apple" },
+          { id: "p2", name: "Alice", word: "banana" },
+        ],
+        won: false,
+      },
+    ];
+    render(<Won roundHistory={duplicateNames} onReset={vi.fn()} />);
+    expect(screen.getByText("apple")).toBeInTheDocument();
+    expect(screen.getByText("banana")).toBeInTheDocument();
   });
 });

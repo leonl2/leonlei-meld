@@ -91,6 +91,25 @@ describe("Won", () => {
     expect(screen.getByText(/0 rounds/i)).toBeInTheDocument();
   });
 
+  it("shows each player's correct word when submission ids are missing (old persisted state)", () => {
+    // Regression: before the id field was added to submissions, s.id was undefined
+    // for all entries. Won.tsx's find(s => s.id === col.id) would match the first
+    // element for every column (undefined === undefined), showing Alice's word in
+    // both columns. The fix falls back to name-based lookup when ids are absent.
+    const noIdHistory = [
+      {
+        submissions: [
+          { id: undefined as unknown as string, name: "Alice", word: "apple" },
+          { id: undefined as unknown as string, name: "Bob", word: "banana" },
+        ],
+        won: false,
+      },
+    ] satisfies RoundEntry[];
+    render(<Won roundHistory={noIdHistory} onReset={vi.fn()} />);
+    expect(screen.getByText("apple")).toBeInTheDocument();
+    expect(screen.getByText("banana")).toBeInTheDocument();
+  });
+
   it("correctly assigns words to the right player when names are identical", () => {
     const duplicateNames: RoundEntry[] = [
       {

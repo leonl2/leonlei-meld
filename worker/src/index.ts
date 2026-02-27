@@ -1,7 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 
 interface RoundEntry {
-  submissions: { name: string; word: string }[];
+  submissions: { id: string; name: string; word: string }[];
   won: boolean;
 }
 
@@ -12,22 +12,16 @@ interface PersistedState {
   usedWords: string[];
   currentSubmissions: Record<string, string>;
   roundHistory: RoundEntry[];
+  restartVotes: string[];
 }
-
-const DEFAULT_STATE: PersistedState = {
-  phase: "lobby",
-  playerNames: {},
-  playerSubmitted: {},
-  usedWords: [],
-  currentSubmissions: {},
-  roundHistory: [],
-};
 
 type ClientMessage =
   | { type: "join"; playerName: string }
   | { type: "start" }
   | { type: "submit"; word: string }
   | { type: "reset" }
+  | { type: "restart_request" }
+  | { type: "restart_cancel" }
   | { type: "ping" };
 
 export class GameRoom extends DurableObject {
@@ -42,7 +36,17 @@ export class GameRoom extends DurableObject {
   }
 
   private async load(): Promise<PersistedState> {
-    return (await this.ctx.storage.get<PersistedState>("state")) ?? { ...DEFAULT_STATE };
+    return (
+      (await this.ctx.storage.get<PersistedState>("state")) ?? {
+        phase: "lobby",
+        playerNames: {},
+        playerSubmitted: {},
+        usedWords: [],
+        currentSubmissions: {},
+        roundHistory: [],
+        restartVotes: [],
+      }
+    );
   }
 
   private async save(state: PersistedState): Promise<void> {
@@ -64,12 +68,15 @@ export class GameRoom extends DurableObject {
     this.broadcast({
       type: "state",
       phase: state.phase,
-      players: this.connectedIds().map((id) => ({
-        id,
-        name: state.playerNames[id] ?? "Unknown",
-        submitted: state.playerSubmitted[id] ?? false,
-      })),
+      players: this.connectedIds()
+        .filter((id) => state.playerNames[id] !== undefined)
+        .map((id) => ({
+          id,
+          name: state.playerNames[id],
+          submitted: state.playerSubmitted[id] ?? false,
+        })),
       roundHistory: state.roundHistory,
+      restartVotes: state.restartVotes,
     });
   }
 
@@ -93,6 +100,7 @@ export class GameRoom extends DurableObject {
           state.playerSubmitted[playerId] = false;
         }
         await this.save(state);
+        ws.send(JSON.stringify({ type: "welcome", playerId }));
         this.broadcastState(state);
         break;
       }
@@ -133,13 +141,49 @@ export class GameRoom extends DurableObject {
         break;
       }
 
+      case "restart_request": {
+        if (state.phase !== "playing") break;
+        if (!state.restartVotes.includes(playerId)) {
+          state.restartVotes.push(playerId);
+        }
+        const namedPlayers = this.connectedIds().filter((id) => state.playerNames[id] !== undefined);
+        if (namedPlayers.length > 0 && namedPlayers.every((id) => state.restartVotes.includes(id))) {
+          const fresh: PersistedState = {
+            phase: "playing",
+            playerNames: Object.fromEntries(namedPlayers.map((id) => [id, state.playerNames[id]])),
+            playerSubmitted: Object.fromEntries(namedPlayers.map((id) => [id, false])),
+            usedWords: [],
+            currentSubmissions: {},
+            roundHistory: [],
+            restartVotes: [],
+          };
+          await this.save(fresh);
+          this.broadcastState(fresh);
+        } else {
+          await this.save(state);
+          this.broadcastState(state);
+        }
+        break;
+      }
+
+      case "restart_cancel": {
+        if (state.phase !== "playing") break;
+        state.restartVotes = [];
+        await this.save(state);
+        this.broadcastState(state);
+        break;
+      }
+
       case "reset": {
-        const ids = this.connectedIds();
+        const ids = this.connectedIds().filter((id) => state.playerNames[id] !== undefined);
         const fresh: PersistedState = {
-          ...DEFAULT_STATE,
           phase: "playing",
-          playerNames: Object.fromEntries(ids.map((id) => [id, state.playerNames[id] ?? "Unknown"])),
+          playerNames: Object.fromEntries(ids.map((id) => [id, state.playerNames[id]])),
           playerSubmitted: Object.fromEntries(ids.map((id) => [id, false])),
+          usedWords: [],
+          currentSubmissions: {},
+          roundHistory: [],
+          restartVotes: [],
         };
         await this.save(fresh);
         this.broadcastState(fresh);
@@ -150,6 +194,7 @@ export class GameRoom extends DurableObject {
 
   private async resolveRound(state: PersistedState): Promise<void> {
     const submissions = Object.entries(state.currentSubmissions).map(([id, word]) => ({
+      id,
       name: state.playerNames[id] ?? "Unknown",
       word,
     }));
@@ -183,19 +228,41 @@ export class GameRoom extends DurableObject {
 
     delete state.playerNames[playerId];
     delete state.playerSubmitted[playerId];
+    delete state.currentSubmissions[playerId];
+    // Remove from restart vote if they had voted
+    state.restartVotes = state.restartVotes.filter((id) => id !== playerId);
 
     const remaining = this.connectedIds();
 
     if (remaining.length === 0) {
       state.phase = "lobby";
+      state.restartVotes = [];
       await this.save(state);
       return;
+    }
+
+    // If a restart vote was in progress, check if the remaining players have now all agreed
+    if (state.phase === "playing" && state.restartVotes.length > 0) {
+      const namedRemaining = remaining.filter((id) => state.playerNames[id] !== undefined);
+      if (namedRemaining.length > 0 && namedRemaining.every((id) => state.restartVotes.includes(id))) {
+        const fresh: PersistedState = {
+          phase: "playing",
+          playerNames: Object.fromEntries(namedRemaining.map((id) => [id, state.playerNames[id]])),
+          playerSubmitted: Object.fromEntries(namedRemaining.map((id) => [id, false])),
+          usedWords: [],
+          currentSubmissions: {},
+          roundHistory: [],
+          restartVotes: [],
+        };
+        await this.save(fresh);
+        this.broadcastState(fresh);
+        return;
+      }
     }
 
     if (state.phase === "playing" && remaining.length > 0) {
       const allDone = remaining.every((id) => state.playerSubmitted[id]);
       if (allDone && Object.keys(state.currentSubmissions).length > 0) {
-        delete state.currentSubmissions[playerId];
         await this.save(state);
         await this.resolveRound(state);
         return;

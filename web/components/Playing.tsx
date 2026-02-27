@@ -8,29 +8,46 @@ interface Props {
   roundHistory: RoundEntry[];
   error: string | null;
   onSubmit: (word: string) => void;
-  myName: string;
+  myId: string | null;
+  restartVotes: string[];
+  onRequestRestart: () => void;
+  onCancelRestart: () => void;
 }
 
 const HISTORY_VISIBLE = 4;
+const opacities = [1, 0.35, 0.15, 0.07];
+const sizes = ["", "text-sm", "text-xs", "text-xs"];
 
-const opacities = [1, 0.45, 0.2, 0.1];
-const sizes    = ["text-base", "text-sm", "text-xs", "text-xs"];
-
-export default function Playing({ players, roundHistory, error, onSubmit, myName }: Props) {
+export default function Playing({
+  players,
+  roundHistory,
+  error,
+  onSubmit,
+  myId,
+  restartVotes,
+  onRequestRestart,
+  onCancelRestart,
+}: Props) {
   const [word, setWord] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const prevHistoryLen = useRef(roundHistory.length);
 
-  const me = players.find((p) => p.name === myName);
+  const me = players.find((p) => p.id === myId);
   const hasSubmitted = me?.submitted ?? false;
   const submittedCount = players.filter((p) => p.submitted).length;
 
-  // Re-focus input when a new round starts (history length increases)
+  const voteActive = restartVotes.length > 0;
+  const iHaveVoted = myId !== null && restartVotes.includes(myId);
+  const pendingPlayers = players.filter((p) => !restartVotes.includes(p.id));
+
+  // Re-focus input and clear word when a new round starts (history length increases)
   useEffect(() => {
     if (roundHistory.length > prevHistoryLen.current) {
       prevHistoryLen.current = roundHistory.length;
-      setWord("");
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setTimeout(() => {
+        setWord("");
+        inputRef.current?.focus();
+      }, 50);
     }
   }, [roundHistory.length]);
 
@@ -48,23 +65,33 @@ export default function Playing({ players, roundHistory, error, onSubmit, myName
 
       {/* Word history waterfall */}
       {visibleHistory.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {visibleHistory.map((round, i) => (
             <div
               key={roundHistory.length - i}
               className={`transition-all duration-500 ${sizes[i]} ${i === 0 ? "animate-pop" : ""}`}
               style={{ opacity: opacities[i] }}
             >
-              <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-                {round.submissions.map((s) => (
-                  <span key={s.name}>
-                    <span className="font-mono font-semibold">{s.word}</span>
-                    {i === 0 && (
-                      <span className="text-[var(--muted)] ml-1">({s.name})</span>
-                    )}
-                  </span>
-                ))}
-              </div>
+              {i === 0 ? (
+                /* Most recent round: large words with names clearly labelled below */
+                <div className="flex flex-wrap gap-5">
+                  {round.submissions.map((s) => (
+                    <div key={s.id} className="flex flex-col gap-0.5">
+                      <span className="font-mono font-bold text-xl leading-none">{s.word}</span>
+                      <span className="text-[9px] font-medium uppercase tracking-[0.18em] text-[var(--muted)]">
+                        {s.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* Older rounds: compact words only, no names */
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                  {round.submissions.map((s) => (
+                    <span key={s.id} className="font-mono font-semibold">{s.word}</span>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -122,6 +149,69 @@ export default function Playing({ players, roundHistory, error, onSubmit, myName
             Submit
           </button>
         </div>
+      )}
+
+      {/* Restart vote */}
+      {voteActive ? (
+        <div className="border border-[var(--border)] rounded-xl p-3 space-y-2.5 animate-fade-up">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono text-[var(--muted)]">↺</span>
+            <span className="text-xs font-medium">Restart?</span>
+            <div className="flex gap-2.5 ml-1">
+              {players.map((p) => (
+                <span
+                  key={p.id}
+                  className={`flex items-center gap-1 text-xs ${
+                    restartVotes.includes(p.id) ? "text-[var(--foreground)]" : "text-[var(--muted)]"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      restartVotes.includes(p.id) ? "bg-[var(--foreground)]" : "bg-[var(--border)]"
+                    }`}
+                  />
+                  {p.name}
+                </span>
+              ))}
+            </div>
+          </div>
+          {iHaveVoted ? (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[var(--muted)]">
+                Waiting for {pendingPlayers.map((p) => p.name).join(", ")}…
+              </span>
+              <button
+                onClick={onCancelRestart}
+                className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={onRequestRestart}
+                className="text-xs px-3 py-1.5 bg-[var(--foreground)] text-white rounded-lg hover:bg-[var(--accent)] transition-colors"
+              >
+                Agree
+              </button>
+              <button
+                onClick={onCancelRestart}
+                className="text-xs px-3 py-1.5 border border-[var(--border)] rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                Nope
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={onRequestRestart}
+          className="self-start text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mt-1"
+          aria-label="Request restart"
+        >
+          ↺ restart
+        </button>
       )}
     </div>
   );

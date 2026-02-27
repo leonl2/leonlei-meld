@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useGameRoom } from "@/hooks/useGameRoom";
 import Lobby from "@/components/Lobby";
@@ -10,19 +10,15 @@ import Won from "@/components/Won";
 export default function RoomPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const [playerName, setPlayerName] = useState("");
+  const [playerName, setPlayerName] = useState(
+    () => sessionStorage.getItem("meld_name") ?? ""
+  );
   const [nameInput, setNameInput] = useState("");
-  const [nameSet, setNameSet] = useState(false);
+  const [nameSet, setNameSet] = useState(
+    () => !!sessionStorage.getItem("meld_name")
+  );
 
-  useEffect(() => {
-    const stored = sessionStorage.getItem("meld_name");
-    if (stored) {
-      setPlayerName(stored);
-      setNameSet(true);
-    }
-  }, []);
-
-  const { state, error, connected, start, submit, reset } = useGameRoom(code, playerName);
+  const { state, error, connected, myId, start, submit, reset, requestRestart, cancelRestart } = useGameRoom(code, playerName);
 
   function confirmName() {
     const trimmed = nameInput.trim();
@@ -94,7 +90,10 @@ export default function RoomPage() {
           roundHistory={state.roundHistory}
           error={error}
           onSubmit={submit}
-          myName={playerName}
+          myId={myId}
+          restartVotes={state.restartVotes}
+          onRequestRestart={requestRestart}
+          onCancelRestart={cancelRestart}
         />
       )}
 

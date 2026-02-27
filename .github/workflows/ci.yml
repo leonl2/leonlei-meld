@@ -23,7 +23,7 @@ jobs:
       - run: npm test
 
   test-web:
-    name: Web tests + lint
+    name: Web tests + lint + build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,3 +38,4 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run lint
+      - run: npm run build

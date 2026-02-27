@@ -498,6 +498,85 @@ describe("reset", () => {
 });
 
 // ---------------------------------------------------------------------------
+// restart_request / restart_cancel
+// ---------------------------------------------------------------------------
+
+describe("restart vote", () => {
+  it("records the requesting player's vote", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "restart_request" });
+    expect(env.getState().restartVotes).toContain("p1");
+  });
+
+  it("is a no-op outside the playing phase", async () => {
+    const env = await twoPlayersInLobby();
+    await send(env.room, env.ws1, { type: "restart_request" });
+    expect(env.getState().restartVotes ?? []).toHaveLength(0);
+  });
+
+  it("restarts the game when all players have voted", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    await send(env.room, env.ws1, { type: "restart_request" });
+    await send(env.room, env.ws2, { type: "restart_request" });
+    const state = env.getState();
+    expect(state.phase).toBe("playing");
+    expect(state.roundHistory).toHaveLength(0);
+    expect(state.usedWords).toHaveLength(0);
+    expect(state.restartVotes).toHaveLength(0);
+  });
+
+  it("does not restart when only some players have voted", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    await send(env.room, env.ws1, { type: "restart_request" });
+    expect(env.getState().phase).toBe("playing");
+    expect(env.getState().roundHistory).toHaveLength(0); // hasn't resolved the round
+    expect(env.getState().currentSubmissions["p1"]).toBe("apple"); // submission preserved
+  });
+
+  it("cancels the vote when any player sends restart_cancel", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "restart_request" });
+    await send(env.room, env.ws2, { type: "restart_cancel" });
+    expect(env.getState().restartVotes).toHaveLength(0);
+  });
+
+  it("includes restartVotes in broadcast state", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "restart_request" });
+    const broadcast = lastBroadcast(env.ws2);
+    expect(broadcast?.restartVotes).toContain("p1");
+  });
+
+  it("auto-restarts if the non-voting player disconnects", async () => {
+    const env = await twoPlayersPlaying();
+    // Alice votes to restart but Bob hasn't yet
+    await send(env.room, env.ws1, { type: "restart_request" });
+    expect(env.getState().restartVotes).toContain("p1");
+    // Bob disconnects — Alice is the only remaining named player and already voted
+    env.disconnect(env.ws2);
+    await env.room.webSocketClose(env.ws2 as any);
+    const state = env.getState();
+    expect(state.phase).toBe("playing");
+    expect(state.restartVotes).toHaveLength(0);
+    expect(state.roundHistory).toHaveLength(0);
+  });
+
+  it("cancels the vote if the initiating player disconnects", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "restart_request" });
+    // Alice (initiator) disconnects — Bob has not voted, so no one has voted now
+    env.disconnect(env.ws1);
+    await env.room.webSocketClose(env.ws1 as any);
+    // Bob is remaining, he hasn't voted → restartVotes should be empty, game still playing
+    const state = env.getState();
+    expect(state.restartVotes).toHaveLength(0);
+    expect(state.phase).toBe("playing");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // ping / pong
 // ---------------------------------------------------------------------------
 

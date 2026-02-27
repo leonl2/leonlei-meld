@@ -18,7 +18,7 @@ export default function RoomPage() {
     () => !!sessionStorage.getItem("meld_name")
   );
 
-  const { state, error, connected, myId, start, submit, reset } = useGameRoom(code, playerName);
+  const { state, error, connected, myId, start, submit, reset, requestRestart, cancelRestart } = useGameRoom(code, playerName);
 
   function confirmName() {
     const trimmed = nameInput.trim();
@@ -91,6 +91,9 @@ export default function RoomPage() {
           error={error}
           onSubmit={submit}
           myId={myId}
+          restartVotes={state.restartVotes}
+          onRequestRestart={requestRestart}
+          onCancelRestart={cancelRestart}
         />
       )}
 

@@ -23,6 +23,13 @@ const ROUND_HISTORY: RoundEntry[] = [
   },
 ];
 
+/** Default no-op restart props so individual tests only set what they care about */
+const NO_VOTE = {
+  restartVotes: [] as string[],
+  onRequestRestart: vi.fn(),
+  onCancelRestart: vi.fn(),
+};
+
 describe("Playing", () => {
   describe("player status indicators", () => {
     it("shows all player names", () => {
@@ -33,6 +40,7 @@ describe("Playing", () => {
           error={null}
           onSubmit={vi.fn()}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -47,6 +55,7 @@ describe("Playing", () => {
           error={null}
           onSubmit={vi.fn()}
           myId="p2"
+          {...NO_VOTE}
         />
       );
       expect(screen.getByText("1/2")).toBeInTheDocument();
@@ -62,6 +71,7 @@ describe("Playing", () => {
           error={null}
           onSubmit={vi.fn()}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       expect(screen.getByPlaceholderText(/type a word/i)).toBeInTheDocument();
@@ -75,6 +85,7 @@ describe("Playing", () => {
           error={null}
           onSubmit={vi.fn()}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
@@ -88,6 +99,7 @@ describe("Playing", () => {
           error={null}
           onSubmit={vi.fn()}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       fireEvent.change(screen.getByPlaceholderText(/type a word/i), {
@@ -107,6 +119,7 @@ describe("Playing", () => {
           error={null}
           onSubmit={onSubmit}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       fireEvent.change(screen.getByPlaceholderText(/type a word/i), {
@@ -125,6 +138,7 @@ describe("Playing", () => {
           error={null}
           onSubmit={onSubmit}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       const input = screen.getByPlaceholderText(/type a word/i);
@@ -142,6 +156,7 @@ describe("Playing", () => {
           error={null}
           onSubmit={onSubmit}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       fireEvent.keyDown(screen.getByPlaceholderText(/type a word/i), {
@@ -160,6 +175,7 @@ describe("Playing", () => {
           error={null}
           onSubmit={vi.fn()}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       expect(
@@ -178,6 +194,7 @@ describe("Playing", () => {
           error='"apple" was used in a previous round.'
           onSubmit={vi.fn()}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       expect(
@@ -193,6 +210,7 @@ describe("Playing", () => {
           error={null}
           onSubmit={vi.fn()}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       expect(
@@ -210,10 +228,28 @@ describe("Playing", () => {
           error={null}
           onSubmit={vi.fn()}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       expect(screen.getByText("apple")).toBeInTheDocument();
       expect(screen.getByText("banana")).toBeInTheDocument();
+    });
+
+    it("shows player names below words in the most recent round", () => {
+      render(
+        <Playing
+          players={PLAYERS}
+          roundHistory={ROUND_HISTORY}
+          error={null}
+          onSubmit={vi.fn()}
+          myId="p1"
+          {...NO_VOTE}
+        />
+      );
+      // Names appear both as history labels (below the word) AND in the player
+      // status row, so each name should appear at least twice.
+      expect(screen.getAllByText("Alice").length).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByText("Bob").length).toBeGreaterThanOrEqual(2);
     });
 
     it("changes the input placeholder after the first round", () => {
@@ -224,11 +260,116 @@ describe("Playing", () => {
           error={null}
           onSubmit={vi.fn()}
           myId="p1"
+          {...NO_VOTE}
         />
       );
       expect(
         screen.getByPlaceholderText(/think of a common thread/i)
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("restart vote", () => {
+    it("shows a subtle restart button when no vote is active", () => {
+      render(
+        <Playing
+          players={PLAYERS}
+          roundHistory={[]}
+          error={null}
+          onSubmit={vi.fn()}
+          myId="p1"
+          {...NO_VOTE}
+        />
+      );
+      expect(screen.getByRole("button", { name: /restart/i })).toBeInTheDocument();
+    });
+
+    it("calls onRequestRestart when the restart button is clicked", () => {
+      const onRequestRestart = vi.fn();
+      render(
+        <Playing
+          players={PLAYERS}
+          roundHistory={[]}
+          error={null}
+          onSubmit={vi.fn()}
+          myId="p1"
+          restartVotes={[]}
+          onRequestRestart={onRequestRestart}
+          onCancelRestart={vi.fn()}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /restart/i }));
+      expect(onRequestRestart).toHaveBeenCalledOnce();
+    });
+
+    it("shows the vote card with Agree and Nope when a vote is active and I haven't voted", () => {
+      render(
+        <Playing
+          players={PLAYERS}
+          roundHistory={[]}
+          error={null}
+          onSubmit={vi.fn()}
+          myId="p2"
+          restartVotes={["p1"]}
+          onRequestRestart={vi.fn()}
+          onCancelRestart={vi.fn()}
+        />
+      );
+      expect(screen.getByRole("button", { name: /agree/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /nope/i })).toBeInTheDocument();
+    });
+
+    it("shows waiting state with Cancel when I have already voted", () => {
+      render(
+        <Playing
+          players={PLAYERS}
+          roundHistory={[]}
+          error={null}
+          onSubmit={vi.fn()}
+          myId="p1"
+          restartVotes={["p1"]}
+          onRequestRestart={vi.fn()}
+          onCancelRestart={vi.fn()}
+        />
+      );
+      expect(screen.getByText(/waiting for/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+    });
+
+    it("calls onCancelRestart when Nope is clicked", () => {
+      const onCancelRestart = vi.fn();
+      render(
+        <Playing
+          players={PLAYERS}
+          roundHistory={[]}
+          error={null}
+          onSubmit={vi.fn()}
+          myId="p2"
+          restartVotes={["p1"]}
+          onRequestRestart={vi.fn()}
+          onCancelRestart={onCancelRestart}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /nope/i }));
+      expect(onCancelRestart).toHaveBeenCalledOnce();
+    });
+
+    it("calls onCancelRestart when Cancel is clicked by the initiator", () => {
+      const onCancelRestart = vi.fn();
+      render(
+        <Playing
+          players={PLAYERS}
+          roundHistory={[]}
+          error={null}
+          onSubmit={vi.fn()}
+          myId="p1"
+          restartVotes={["p1"]}
+          onRequestRestart={vi.fn()}
+          onCancelRestart={onCancelRestart}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+      expect(onCancelRestart).toHaveBeenCalledOnce();
     });
   });
 });

@@ -12,6 +12,7 @@ interface PersistedState {
   usedWords: string[];
   currentSubmissions: Record<string, string>;
   roundHistory: RoundEntry[];
+  restartVotes: string[];
 }
 
 type ClientMessage =
@@ -19,6 +20,8 @@ type ClientMessage =
   | { type: "start" }
   | { type: "submit"; word: string }
   | { type: "reset" }
+  | { type: "restart_request" }
+  | { type: "restart_cancel" }
   | { type: "ping" };
 
 export class GameRoom extends DurableObject {
@@ -41,6 +44,7 @@ export class GameRoom extends DurableObject {
         usedWords: [],
         currentSubmissions: {},
         roundHistory: [],
+        restartVotes: [],
       }
     );
   }
@@ -72,6 +76,7 @@ export class GameRoom extends DurableObject {
           submitted: state.playerSubmitted[id] ?? false,
         })),
       roundHistory: state.roundHistory,
+      restartVotes: state.restartVotes,
     });
   }
 
@@ -136,6 +141,39 @@ export class GameRoom extends DurableObject {
         break;
       }
 
+      case "restart_request": {
+        if (state.phase !== "playing") break;
+        if (!state.restartVotes.includes(playerId)) {
+          state.restartVotes.push(playerId);
+        }
+        const namedPlayers = this.connectedIds().filter((id) => state.playerNames[id] !== undefined);
+        if (namedPlayers.length > 0 && namedPlayers.every((id) => state.restartVotes.includes(id))) {
+          const fresh: PersistedState = {
+            phase: "playing",
+            playerNames: Object.fromEntries(namedPlayers.map((id) => [id, state.playerNames[id]])),
+            playerSubmitted: Object.fromEntries(namedPlayers.map((id) => [id, false])),
+            usedWords: [],
+            currentSubmissions: {},
+            roundHistory: [],
+            restartVotes: [],
+          };
+          await this.save(fresh);
+          this.broadcastState(fresh);
+        } else {
+          await this.save(state);
+          this.broadcastState(state);
+        }
+        break;
+      }
+
+      case "restart_cancel": {
+        if (state.phase !== "playing") break;
+        state.restartVotes = [];
+        await this.save(state);
+        this.broadcastState(state);
+        break;
+      }
+
       case "reset": {
         const ids = this.connectedIds().filter((id) => state.playerNames[id] !== undefined);
         const fresh: PersistedState = {
@@ -145,6 +183,7 @@ export class GameRoom extends DurableObject {
           usedWords: [],
           currentSubmissions: {},
           roundHistory: [],
+          restartVotes: [],
         };
         await this.save(fresh);
         this.broadcastState(fresh);
@@ -190,13 +229,35 @@ export class GameRoom extends DurableObject {
     delete state.playerNames[playerId];
     delete state.playerSubmitted[playerId];
     delete state.currentSubmissions[playerId];
+    // Remove from restart vote if they had voted
+    state.restartVotes = state.restartVotes.filter((id) => id !== playerId);
 
     const remaining = this.connectedIds();
 
     if (remaining.length === 0) {
       state.phase = "lobby";
+      state.restartVotes = [];
       await this.save(state);
       return;
+    }
+
+    // If a restart vote was in progress, check if the remaining players have now all agreed
+    if (state.phase === "playing" && state.restartVotes.length > 0) {
+      const namedRemaining = remaining.filter((id) => state.playerNames[id] !== undefined);
+      if (namedRemaining.length > 0 && namedRemaining.every((id) => state.restartVotes.includes(id))) {
+        const fresh: PersistedState = {
+          phase: "playing",
+          playerNames: Object.fromEntries(namedRemaining.map((id) => [id, state.playerNames[id]])),
+          playerSubmitted: Object.fromEntries(namedRemaining.map((id) => [id, false])),
+          usedWords: [],
+          currentSubmissions: {},
+          roundHistory: [],
+          restartVotes: [],
+        };
+        await this.save(fresh);
+        this.broadcastState(fresh);
+        return;
+      }
     }
 
     if (state.phase === "playing" && remaining.length > 0) {

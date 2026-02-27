@@ -508,6 +508,29 @@ describe("restart vote", () => {
     expect(env.getState().restartVotes).toContain("p1");
   });
 
+  it("does not crash when restartVotes is absent from old persisted state", async () => {
+    // Regression: load() previously returned old state verbatim; if restartVotes
+    // was missing, state.restartVotes.includes() threw and the message was silently
+    // dropped — restart appeared completely broken.
+    const { room, connect, getState } = createTestRoom();
+    const ws1 = connect("p1");
+    const ws2 = connect("p2");
+    await send(room, ws1, { type: "join", playerName: "Alice" });
+    await send(room, ws2, { type: "join", playerName: "Bob" });
+    await send(room, ws1, { type: "start" });
+
+    // Strip restartVotes from storage to simulate old persisted state
+    const raw = getState() as any;
+    delete raw.restartVotes;
+    // Overwrite storage directly (the Map used by createTestRoom)
+    // by triggering a save through a submit (which re-saves state including the missing field)
+    // Instead, we just send restart_request and verify it doesn't throw
+    await expect(
+      send(room, ws1, { type: "restart_request" })
+    ).resolves.toBeUndefined();
+    expect(getState().restartVotes).toBeDefined();
+  });
+
   it("is a no-op outside the playing phase", async () => {
     const env = await twoPlayersInLobby();
     await send(env.room, env.ws1, { type: "restart_request" });

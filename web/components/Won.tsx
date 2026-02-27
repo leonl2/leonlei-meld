@@ -6,7 +6,8 @@ interface Props {
 }
 
 export default function Won({ roundHistory, onReset }: Props) {
-  // Derive player columns in consistent order from first round, keyed by id
+  // Derive player columns from the first round.
+  // Fall back to name when id is missing (rounds persisted before the id field was added).
   const playerColumns = roundHistory.length > 0
     ? roundHistory[0].submissions.map((s) => ({ id: s.id, name: s.name }))
     : [];
@@ -35,7 +36,7 @@ export default function Won({ roundHistory, onReset }: Props) {
               </th>
               {playerColumns.map((col) => (
                 <th
-                  key={col.id}
+                  key={col.id ?? col.name}
                   className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 px-4"
                 >
                   {col.name}
@@ -55,9 +56,12 @@ export default function Won({ roundHistory, onReset }: Props) {
                   {i + 1}
                 </td>
                 {playerColumns.map((col) => {
-                  const sub = round.submissions.find((s) => s.id === col.id);
+                  // Match by id when both sides have one; fall back to name for old persisted state
+                  const sub = round.submissions.find((s) =>
+                    col.id && s.id ? s.id === col.id : s.name === col.name
+                  );
                   return (
-                    <td key={col.id} className="py-2.5 px-4 font-mono font-semibold">
+                    <td key={col.id ?? col.name} className="py-2.5 px-4 font-mono font-semibold">
                       {sub?.word ?? "—"}
                       {round.won && " ✓"}
                     </td>

@@ -73,11 +73,15 @@ export default function Playing({
               style={{ opacity: opacities[i] }}
             >
               {i === 0 ? (
-                /* Most recent round: large words with names clearly labelled below */
-                <div className="flex flex-wrap gap-5">
-                  {round.submissions.map((s) => (
-                    <div key={s.id} className="flex flex-col gap-0.5">
-                      <span className="font-mono font-bold text-xl leading-none">{s.word}</span>
+                /* Most recent round: large words with names clearly labelled below.
+                   Border separator between submissions stops long words from merging visually. */
+                <div className="flex flex-wrap gap-y-2">
+                  {round.submissions.map((s, j) => (
+                    <div
+                      key={s.id}
+                      className={`flex flex-col gap-0.5 ${j > 0 ? "border-l border-[var(--border)] pl-5 ml-5" : ""}`}
+                    >
+                      <span className="font-mono font-bold text-xl leading-none break-all">{s.word}</span>
                       <span className="text-[9px] font-medium uppercase tracking-[0.18em] text-[var(--muted)]">
                         {s.name}
                       </span>
@@ -136,6 +140,9 @@ export default function Playing({
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             placeholder={roundHistory.length === 0 ? "Type a word…" : "Think of a common thread…"}
             autoFocus
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             className="w-full px-4 py-3 border border-[var(--border)] rounded-xl bg-white text-sm focus:outline-none focus:border-[var(--foreground)] transition-colors"
           />
           {error && (

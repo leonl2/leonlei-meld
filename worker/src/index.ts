@@ -36,8 +36,9 @@ export class GameRoom extends DurableObject {
   }
 
   private async load(): Promise<PersistedState> {
-    return (
-      (await this.ctx.storage.get<PersistedState>("state")) ?? {
+    const saved = await this.ctx.storage.get<PersistedState>("state");
+    if (!saved) {
+      return {
         phase: "lobby",
         playerNames: {},
         playerSubmitted: {},
@@ -45,8 +46,10 @@ export class GameRoom extends DurableObject {
         currentSubmissions: {},
         roundHistory: [],
         restartVotes: [],
-      }
-    );
+      };
+    }
+    // Migrate old persisted state that pre-dates the restartVotes field
+    return { ...saved, restartVotes: saved.restartVotes ?? [] };
   }
 
   private async save(state: PersistedState): Promise<void> {

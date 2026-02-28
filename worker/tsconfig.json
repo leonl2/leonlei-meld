@@ -8,8 +8,8 @@
     "strict": true,
     "noEmit": true,
     "paths": {
-      "@shared/types": ["../shared/types"]
+      "@shared/types": ["../web/shared/types"]
     }
   },
-  "include": ["src/**/*.ts", "../shared/types.ts"]
+  "include": ["src/**/*.ts", "../web/shared/types.ts"]
 }

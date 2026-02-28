@@ -338,6 +338,38 @@ describe("resolveRound", () => {
       expect(state.roundHistory[0].won).toBe(false);
     }
   });
+
+  it("resolves correctly when a player leaves and a replacement joins mid-game", async () => {
+    // Alice and Bob start; Bob leaves after round 1; Carol joins and wins with Alice.
+    const env = await twoPlayersPlaying();
+
+    // Round 1: different words → no win, advances to round 2
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    await send(env.room, env.ws2, { type: "submit", word: "banana" });
+    expect(env.getState().phase).toBe("playing");
+
+    // Bob disconnects
+    env.disconnect(env.ws2);
+    await env.room.webSocketClose(env.ws2 as any);
+
+    // Carol joins as a replacement
+    const ws3 = env.connect("p3");
+    await send(env.room, ws3, { type: "join", playerName: "Carol" });
+
+    // Round 2: Alice and Carol submit the same word → win
+    await send(env.room, env.ws1, { type: "submit", word: "meld" });
+    await send(env.room, ws3, { type: "submit", word: "meld" });
+
+    const state = env.getState();
+    expect(state.phase).toBe("won");
+
+    const round2 = state.roundHistory[1];
+    expect(round2.won).toBe(true);
+    const names = round2.submissions.map((s: any) => s.name);
+    expect(names).toContain("Alice");
+    expect(names).toContain("Carol");
+    expect(names).not.toContain("Bob");
+  });
 });
 
 // ---------------------------------------------------------------------------

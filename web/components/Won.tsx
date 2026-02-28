@@ -6,11 +6,22 @@ interface Props {
 }
 
 export default function Won({ roundHistory, onReset }: Props) {
-  // Derive player columns from the first round.
+  // Derive player columns from the union of all rounds, in first-appearance order.
+  // This handles the case where a player left and was replaced mid-game — the
+  // replacement player has a different id and would be invisible if we only
+  // looked at the first round.
   // Fall back to name when id is missing (rounds persisted before the id field was added).
-  const playerColumns = roundHistory.length > 0
-    ? roundHistory[0].submissions.map((s) => ({ id: s.id, name: s.name }))
-    : [];
+  const seenKeys = new Set<string>();
+  const playerColumns: { id: string; name: string }[] = [];
+  for (const round of roundHistory) {
+    for (const sub of round.submissions) {
+      const key = sub.id ?? sub.name;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        playerColumns.push({ id: sub.id, name: sub.name });
+      }
+    }
+  }
 
   const rounds = roundHistory.length;
 

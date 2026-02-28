@@ -110,6 +110,36 @@ describe("Won", () => {
     expect(screen.getByText("banana")).toBeInTheDocument();
   });
 
+  it("shows a column for a replacement player who joined mid-game", () => {
+    // Bob (p2) leaves after round 1; Carol (p3) joins and wins in round 2.
+    // The results table must include a column for all three players.
+    const replacementHistory: RoundEntry[] = [
+      {
+        submissions: [
+          { id: "p1", name: "Alice", word: "apple" },
+          { id: "p2", name: "Bob", word: "banana" },
+        ],
+        won: false,
+      },
+      {
+        submissions: [
+          { id: "p1", name: "Alice", word: "meld" },
+          { id: "p3", name: "Carol", word: "meld" },
+        ],
+        won: true,
+      },
+    ];
+    render(<Won roundHistory={replacementHistory} onReset={vi.fn()} />);
+    expect(screen.getByRole("columnheader", { name: /alice/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /bob/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /carol/i })).toBeInTheDocument();
+    // Carol's winning word should appear
+    const meldCells = screen.getAllByText(/meld/);
+    expect(meldCells.some((c) => c.textContent?.includes("✓"))).toBe(true);
+    // Bob has no submission in round 2 — should show a dash
+    expect(screen.getByText("banana")).toBeInTheDocument();
+  });
+
   it("correctly assigns words to the right player when names are identical", () => {
     const duplicateNames: RoundEntry[] = [
       {

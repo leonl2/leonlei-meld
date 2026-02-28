@@ -71,10 +71,17 @@ export default function Won({ roundHistory, onReset }: Props) {
                   const sub = round.submissions.find((s) =>
                     col.id && s.id ? s.id === col.id : s.name === col.name
                   );
+                  // Show ✓ only on the winning word. For data persisted before
+                  // winningWord was added, fall back to marking all cells in a won round.
+                  const showCheck = sub !== undefined && (
+                    round.winningWord !== undefined
+                      ? sub.word === round.winningWord
+                      : round.won
+                  );
                   return (
                     <td key={col.id ?? col.name} className="py-2.5 px-4 font-mono font-semibold">
                       {sub?.word ?? "—"}
-                      {round.won && " ✓"}
+                      {showCheck && " ✓"}
                     </td>
                   );
                 })}

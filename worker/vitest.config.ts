@@ -11,7 +11,7 @@ export default defineConfig({
         new URL("./src/__mocks__/cloudflare-workers.ts", import.meta.url)
       ),
       "@shared/types": fileURLToPath(
-        new URL("../shared/types.ts", import.meta.url)
+        new URL("../web/shared/types.ts", import.meta.url)
       ),
     },
   },

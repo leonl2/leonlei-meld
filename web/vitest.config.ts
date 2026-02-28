@@ -12,7 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL(".", import.meta.url)),
-      "@shared/types": fileURLToPath(new URL("../shared/types.ts", import.meta.url)),
+      "@shared/types": fileURLToPath(new URL("./shared/types.ts", import.meta.url)),
     },
   },
 });

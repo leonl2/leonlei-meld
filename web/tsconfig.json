@@ -20,7 +20,7 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@shared/types": ["../shared/types"]
+      "@shared/types": ["./shared/types"]
     }
   },
   "include": [

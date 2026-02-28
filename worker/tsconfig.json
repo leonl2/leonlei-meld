@@ -6,7 +6,10 @@
     "moduleResolution": "bundler",
     "types": ["@cloudflare/workers-types"],
     "strict": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@shared/types": ["../shared/types"]
+    }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../shared/types.ts"]
 }

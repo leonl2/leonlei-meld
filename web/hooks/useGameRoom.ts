@@ -1,25 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import type { ServerPhase, Player, RoundEntry, GameConfig } from "@shared/types";
+import { DEFAULT_CONFIG } from "@shared/types";
 
-export type Phase = "connecting" | "lobby" | "playing" | "won";
+// Re-export shared types consumed by other modules via this path
+export type { Player, RoundEntry, GameConfig } from "@shared/types";
 
-export interface Player {
-  id: string;
-  name: string;
-  submitted: boolean;
-}
-
-export interface RoundEntry {
-  submissions: { id: string; name: string; word: string }[];
-  won: boolean;
-}
+export type Phase = ServerPhase | "connecting";
 
 export interface GameState {
   phase: Phase;
   players: Player[];
   roundHistory: RoundEntry[];
   restartVotes: string[];
+  config: GameConfig;
 }
 
 const INITIAL_STATE: GameState = {
@@ -27,6 +22,7 @@ const INITIAL_STATE: GameState = {
   players: [],
   roundHistory: [],
   restartVotes: [],
+  config: DEFAULT_CONFIG,
 };
 
 const PING_INTERVAL_MS = 20_000;
@@ -92,6 +88,7 @@ export function useGameRoom(roomCode: string, playerName: string) {
             players: data.players,
             roundHistory: data.roundHistory ?? [],
             restartVotes: data.restartVotes ?? [],
+            config: data.config ?? DEFAULT_CONFIG,
           });
         }
       };

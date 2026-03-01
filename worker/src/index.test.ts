@@ -338,6 +338,116 @@ describe("resolveRound", () => {
       expect(state.roundHistory[0].won).toBe(false);
     }
   });
+
+  it("records the winning word on a win", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "submit", word: "meld" });
+    await send(env.room, env.ws2, { type: "submit", word: "meld" });
+    expect(env.getState().roundHistory[0].winningWord).toBe("meld");
+  });
+
+  it("records null winningWord on a loss", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    await send(env.room, env.ws2, { type: "submit", word: "banana" });
+    expect(env.getState().roundHistory[0].winningWord).toBeNull();
+  });
+
+  it("includes config in broadcast state", async () => {
+    const env = await twoPlayersPlaying();
+    const broadcast = lastBroadcast(env.ws1);
+    expect(broadcast?.config).toEqual({ winCondition: "exact" });
+  });
+
+  it("resolves correctly when a player leaves and a replacement joins mid-game", async () => {
+    // Alice and Bob start; Bob leaves after round 1; Carol joins and wins with Alice.
+    const env = await twoPlayersPlaying();
+
+    // Round 1: different words → no win, advances to round 2
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    await send(env.room, env.ws2, { type: "submit", word: "banana" });
+    expect(env.getState().phase).toBe("playing");
+
+    // Bob disconnects
+    env.disconnect(env.ws2);
+    await env.room.webSocketClose(env.ws2 as any);
+
+    // Carol joins as a replacement
+    const ws3 = env.connect("p3");
+    await send(env.room, ws3, { type: "join", playerName: "Carol" });
+
+    // Round 2: Alice and Carol submit the same word → win
+    await send(env.room, env.ws1, { type: "submit", word: "meld" });
+    await send(env.room, ws3, { type: "submit", word: "meld" });
+
+    const state = env.getState();
+    expect(state.phase).toBe("won");
+
+    const round2 = state.roundHistory[1];
+    expect(round2.won).toBe(true);
+    const names = round2.submissions.map((s: any) => s.name);
+    expect(names).toContain("Alice");
+    expect(names).toContain("Carol");
+    expect(names).not.toContain("Bob");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// majority win condition
+// ---------------------------------------------------------------------------
+
+describe("majority win condition", () => {
+  async function threePlayers(winCondition: "majority" | "exact" = "majority") {
+    const { room, connect, disconnect, getState } = createTestRoom();
+    const ws1 = connect("p1");
+    const ws2 = connect("p2");
+    const ws3 = connect("p3");
+    await send(room, ws1, { type: "join", playerName: "Alice" });
+    await send(room, ws2, { type: "join", playerName: "Bob" });
+    await send(room, ws3, { type: "join", playerName: "Carol" });
+    await send(room, ws1, { type: "start", winCondition });
+    return { room, ws1, ws2, ws3, connect, disconnect, getState };
+  }
+
+  it("wins when more than half submit the same word", async () => {
+    const env = await threePlayers();
+    await send(env.room, env.ws1, { type: "submit", word: "meld" });
+    await send(env.room, env.ws2, { type: "submit", word: "meld" });
+    await send(env.room, env.ws3, { type: "submit", word: "apple" });
+    expect(env.getState().phase).toBe("won");
+    expect(env.getState().roundHistory[0].winningWord).toBe("meld");
+  });
+
+  it("does not win when no word has majority", async () => {
+    const env = await threePlayers();
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    await send(env.room, env.ws2, { type: "submit", word: "banana" });
+    await send(env.room, env.ws3, { type: "submit", word: "cherry" });
+    expect(env.getState().phase).toBe("playing");
+    expect(env.getState().roundHistory[0].winningWord).toBeNull();
+  });
+
+  it("requires all three for exact win condition even with 3 players", async () => {
+    const env = await threePlayers("exact");
+    await send(env.room, env.ws1, { type: "submit", word: "meld" });
+    await send(env.room, env.ws2, { type: "submit", word: "meld" });
+    await send(env.room, env.ws3, { type: "submit", word: "apple" });
+    expect(env.getState().phase).toBe("playing"); // 2/3 is not all
+  });
+
+  it("preserves win condition across rounds", async () => {
+    const env = await threePlayers();
+    // Round 1: no majority
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    await send(env.room, env.ws2, { type: "submit", word: "banana" });
+    await send(env.room, env.ws3, { type: "submit", word: "cherry" });
+    expect(env.getState().config.winCondition).toBe("majority");
+    // Round 2: majority wins
+    await send(env.room, env.ws1, { type: "submit", word: "meld" });
+    await send(env.room, env.ws2, { type: "submit", word: "meld" });
+    await send(env.room, env.ws3, { type: "submit", word: "other" });
+    expect(env.getState().phase).toBe("won");
+  });
 });
 
 // ---------------------------------------------------------------------------

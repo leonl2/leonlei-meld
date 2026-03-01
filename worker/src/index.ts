@@ -1,9 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
-
-interface RoundEntry {
-  submissions: { id: string; name: string; word: string }[];
-  won: boolean;
-}
+import type { RoundEntry, Player, ClientMessage, GameConfig, ServerStateMessage } from "@shared/types";
+import { DEFAULT_CONFIG } from "@shared/types";
 
 interface PersistedState {
   phase: "lobby" | "playing" | "won";
@@ -13,16 +10,25 @@ interface PersistedState {
   currentSubmissions: Record<string, string>;
   roundHistory: RoundEntry[];
   restartVotes: string[];
+  config: GameConfig;
 }
 
-type ClientMessage =
-  | { type: "join"; playerName: string }
-  | { type: "start" }
-  | { type: "submit"; word: string }
-  | { type: "reset" }
-  | { type: "restart_request" }
-  | { type: "restart_cancel" }
-  | { type: "ping" };
+/** Returns the winning word if the submission set satisfies the win condition, otherwise null. */
+function resolveWin(words: string[], config: GameConfig): string | null {
+  if (words.length < 2) return null;
+  if (config.winCondition === "exact") {
+    return words.every((w) => w === words[0]) ? words[0] : null;
+  }
+  // majority: more than half of submissions are the same word
+  const counts = new Map<string, number>();
+  for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1);
+  let winner: string | null = null;
+  let maxCount = 0;
+  for (const [word, count] of counts) {
+    if (count > maxCount) { maxCount = count; winner = word; }
+  }
+  return maxCount > words.length / 2 ? winner : null;
+}
 
 export class GameRoom extends DurableObject {
   async fetch(request: Request): Promise<Response> {
@@ -46,10 +52,11 @@ export class GameRoom extends DurableObject {
         currentSubmissions: {},
         roundHistory: [],
         restartVotes: [],
+        config: { ...DEFAULT_CONFIG },
       };
     }
-    // Migrate old persisted state that pre-dates the restartVotes field
-    return { ...saved, restartVotes: saved.restartVotes ?? [] };
+    // Migrate old persisted state that pre-dates the restartVotes / config fields
+    return { ...saved, restartVotes: saved.restartVotes ?? [], config: saved.config ?? { ...DEFAULT_CONFIG } };
   }
 
   private async save(state: PersistedState): Promise<void> {
@@ -68,19 +75,21 @@ export class GameRoom extends DurableObject {
   }
 
   private broadcastState(state: PersistedState): void {
-    this.broadcast({
+    const message: ServerStateMessage = {
       type: "state",
       phase: state.phase,
       players: this.connectedIds()
         .filter((id) => state.playerNames[id] !== undefined)
-        .map((id) => ({
+        .map((id): Player => ({
           id,
           name: state.playerNames[id],
           submitted: state.playerSubmitted[id] ?? false,
         })),
       roundHistory: state.roundHistory,
       restartVotes: state.restartVotes,
-    });
+      config: state.config,
+    };
+    this.broadcast(message);
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
@@ -111,6 +120,7 @@ export class GameRoom extends DurableObject {
       case "start": {
         if (state.phase !== "lobby" || this.connectedIds().length < 2) return;
         state.phase = "playing";
+        if (data.winCondition) state.config = { winCondition: data.winCondition };
         state.currentSubmissions = {};
         for (const id of this.connectedIds()) state.playerSubmitted[id] = false;
         await this.save(state);
@@ -159,6 +169,7 @@ export class GameRoom extends DurableObject {
             currentSubmissions: {},
             roundHistory: [],
             restartVotes: [],
+            config: state.config,
           };
           await this.save(fresh);
           this.broadcastState(fresh);
@@ -187,6 +198,7 @@ export class GameRoom extends DurableObject {
           currentSubmissions: {},
           roundHistory: [],
           restartVotes: [],
+          config: state.config,
         };
         await this.save(fresh);
         this.broadcastState(fresh);
@@ -203,14 +215,15 @@ export class GameRoom extends DurableObject {
     }));
 
     const words = submissions.map((s) => s.word);
-    const won = words.length >= 2 && words.every((w) => w === words[0]);
+    const winningWord = resolveWin(words, state.config);
+    const won = winningWord !== null;
 
     // Add all submitted words to usedWords now (after resolution)
     for (const word of words) {
       if (!state.usedWords.includes(word)) state.usedWords.push(word);
     }
 
-    state.roundHistory.push({ submissions, won });
+    state.roundHistory.push({ submissions, won, winningWord });
 
     if (won) {
       state.phase = "won";
@@ -256,6 +269,7 @@ export class GameRoom extends DurableObject {
           currentSubmissions: {},
           roundHistory: [],
           restartVotes: [],
+          config: state.config,
         };
         await this.save(fresh);
         this.broadcastState(fresh);

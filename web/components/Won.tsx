@@ -6,11 +6,22 @@ interface Props {
 }
 
 export default function Won({ roundHistory, onReset }: Props) {
-  // Derive player columns from the first round.
+  // Derive player columns from the union of all rounds, in first-appearance order.
+  // This handles the case where a player left and was replaced mid-game — the
+  // replacement player has a different id and would be invisible if we only
+  // looked at the first round.
   // Fall back to name when id is missing (rounds persisted before the id field was added).
-  const playerColumns = roundHistory.length > 0
-    ? roundHistory[0].submissions.map((s) => ({ id: s.id, name: s.name }))
-    : [];
+  const seenKeys = new Set<string>();
+  const playerColumns: { id: string; name: string }[] = [];
+  for (const round of roundHistory) {
+    for (const sub of round.submissions) {
+      const key = sub.id ?? sub.name;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        playerColumns.push({ id: sub.id, name: sub.name });
+      }
+    }
+  }
 
   const rounds = roundHistory.length;
 
@@ -60,10 +71,17 @@ export default function Won({ roundHistory, onReset }: Props) {
                   const sub = round.submissions.find((s) =>
                     col.id && s.id ? s.id === col.id : s.name === col.name
                   );
+                  // Show ✓ only on the winning word. For data persisted before
+                  // winningWord was added, fall back to marking all cells in a won round.
+                  const showCheck = sub !== undefined && (
+                    round.winningWord !== undefined
+                      ? sub.word === round.winningWord
+                      : round.won
+                  );
                   return (
                     <td key={col.id ?? col.name} className="py-2.5 px-4 font-mono font-semibold">
                       {sub?.word ?? "—"}
-                      {round.won && " ✓"}
+                      {showCheck && " ✓"}
                     </td>
                   );
                 })}

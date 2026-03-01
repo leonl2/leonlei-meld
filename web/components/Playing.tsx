@@ -87,55 +87,56 @@ export default function Playing({
       {/* Top section: history + status */}
       <div className="flex flex-col gap-6">
 
-        {/* Round history table */}
-        {visibleHistory.length > 0 && (
-          <div className="overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)]">
-                  <th className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 pr-4">#</th>
-                  {playerColumns.map((col) => (
-                    <th
-                      key={col.id}
-                      className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 px-4"
-                    >
-                      {col.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {visibleHistory.map((round, i) => {
-                  const age = visibleHistory.length - 1 - i;
-                  const opacity = [1, 0.45, 0.2, 0.1][Math.min(age, 3)];
-                  const isNewest = age === 0;
-                  return (
-                    <tr
-                      key={firstRoundNumber + i}
-                      className={`border-b border-[var(--border)] last:border-0 ${isNewest ? "animate-pop font-bold text-base" : "font-semibold text-sm"}`}
-                      style={{ opacity }}
-                    >
-                      <td className="py-2.5 pr-4 font-mono text-xs text-[var(--muted)]">{firstRoundNumber + i}</td>
-                      {playerColumns.map((col) => {
-                        const sub = round.submissions.find((s) => s.id === col.id);
-                        return (
-                          <td key={col.id} className="py-2.5 px-4 font-mono">
-                            {sub?.word ?? "—"}
-                          </td>
-                        );
-                      })}
+        {/* History + divider: fixed-height container so the input never shifts.
+            268px = header(33) + 4 regular rows(4×41) + newest row(44) + gap-6(24) + divider(1) */}
+        <div className="min-h-[268px]">
+          {visibleHistory.length > 0 && (
+            <div className="flex flex-col gap-6">
+              <div className="overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border)]">
+                      <th className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 pr-4">#</th>
+                      {playerColumns.map((col) => (
+                        <th
+                          key={col.id}
+                          className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 px-4"
+                        >
+                          {col.name}
+                        </th>
+                      ))}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Divider when there's history */}
-        {visibleHistory.length > 0 && (
-          <div className="border-t border-[var(--border)]" />
-        )}
+                  </thead>
+                  <tbody>
+                    {visibleHistory.map((round, i) => {
+                      const age = visibleHistory.length - 1 - i;
+                      const opacity = [1, 0.45, 0.2, 0.1][Math.min(age, 3)];
+                      const isNewest = age === 0;
+                      return (
+                        <tr
+                          key={firstRoundNumber + i}
+                          className={`border-b border-[var(--border)] last:border-0 ${isNewest ? "animate-pop font-bold text-base" : "font-semibold text-sm"}`}
+                          style={{ opacity }}
+                        >
+                          <td className="py-2.5 pr-4 font-mono text-xs text-[var(--muted)]">{firstRoundNumber + i}</td>
+                          {playerColumns.map((col) => {
+                            const sub = round.submissions.find((s) => s.id === col.id);
+                            return (
+                              <td key={col.id} className="py-2.5 px-4 font-mono">
+                                {sub?.word ?? "—"}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t border-[var(--border)]" />
+            </div>
+          )}
+        </div>
 
         {/* Current round status */}
         <div className="flex gap-4">

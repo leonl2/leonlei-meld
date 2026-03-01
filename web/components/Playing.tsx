@@ -40,10 +40,13 @@ export default function Playing({
   const iHaveVoted = myId !== null && restartVotes.includes(myId);
   const pendingPlayers = players.filter((p) => !restartVotes.includes(p.id));
 
-  // Re-focus input and clear word when a new round starts (history length increases)
+  // Re-focus input and clear word when a new round starts (history grows) or
+  // when the game restarts via unanimous vote (history resets to 0 while still playing).
   useEffect(() => {
-    if (roundHistory.length > prevHistoryLen.current) {
-      prevHistoryLen.current = roundHistory.length;
+    const newLen = roundHistory.length;
+    const prevLen = prevHistoryLen.current;
+    prevHistoryLen.current = newLen;
+    if (newLen > prevLen || (newLen === 0 && prevLen > 0)) {
       setTimeout(() => {
         setWord("");
         inputRef.current?.focus();

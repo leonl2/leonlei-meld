@@ -155,6 +155,29 @@ describe("join", () => {
     expect(broadcast?.players[0].name).toBe("Alice");
   });
 
+  it("appends (2) when another connected player already has the same name", async () => {
+    const { room, connect, getState } = createTestRoom();
+    const ws1 = connect("p1");
+    const ws2 = connect("p2");
+    await send(room, ws1, { type: "join", playerName: "Leon" });
+    await send(room, ws2, { type: "join", playerName: "Leon" });
+    expect(getState().playerNames["p1"]).toBe("Leon");
+    expect(getState().playerNames["p2"]).toBe("Leon (2)");
+  });
+
+  it("increments past (2) when that suffix is also taken", async () => {
+    const { room, connect, getState } = createTestRoom();
+    const ws1 = connect("p1");
+    const ws2 = connect("p2");
+    const ws3 = connect("p3");
+    await send(room, ws1, { type: "join", playerName: "Leon" });
+    await send(room, ws2, { type: "join", playerName: "Leon" });
+    await send(room, ws3, { type: "join", playerName: "Leon" });
+    expect(getState().playerNames["p1"]).toBe("Leon");
+    expect(getState().playerNames["p2"]).toBe("Leon (2)");
+    expect(getState().playerNames["p3"]).toBe("Leon (3)");
+  });
+
   it("re-joining updates an existing player's name", async () => {
     const { room, connect, getState } = createTestRoom();
     const ws = connect("p1");

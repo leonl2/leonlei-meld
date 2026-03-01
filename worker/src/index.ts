@@ -106,7 +106,18 @@ export class GameRoom extends DurableObject {
 
     switch (data.type) {
       case "join": {
-        const name = data.playerName.trim().slice(0, 20) || "Anonymous";
+        let name = data.playerName.trim().slice(0, 20) || "Anonymous";
+        const takenNames = new Set(
+          this.connectedIds()
+            .filter((id) => id !== playerId)
+            .map((id) => state.playerNames[id])
+            .filter(Boolean)
+        );
+        if (takenNames.has(name)) {
+          let n = 2;
+          while (takenNames.has(`${name} (${n})`)) n++;
+          name = `${name} (${n})`;
+        }
         state.playerNames[playerId] = name;
         if (state.playerSubmitted[playerId] === undefined) {
           state.playerSubmitted[playerId] = false;

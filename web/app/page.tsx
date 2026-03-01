@@ -28,7 +28,11 @@ export default function Home() {
 
   function handleJoin() {
     const trimmed = name.trim();
-    if (trimmed) sessionStorage.setItem("meld_name", trimmed);
+    if (trimmed) {
+      sessionStorage.setItem("meld_name", trimmed);
+    } else {
+      sessionStorage.removeItem("meld_name");
+    }
     const code = joinCode.trim().toUpperCase();
     if (code.length !== 4) { setError("Room code must be 4 characters."); return; }
     router.push(`/room/${code}`);

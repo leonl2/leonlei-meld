@@ -82,6 +82,17 @@ describe("Home", () => {
       expect(mockPush).toHaveBeenCalledWith("/room/WOLF");
     });
 
+    it("clears a stale cached name from sessionStorage when joining without entering a name", () => {
+      sessionStorage.setItem("meld_name", "StaleNameFromBefore");
+      render(<Home />);
+      fireEvent.change(screen.getByPlaceholderText("WOLF"), {
+        target: { value: "WOLF" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /join room/i }));
+      expect(sessionStorage.getItem("meld_name")).toBeNull();
+      expect(mockPush).toHaveBeenCalledWith("/room/WOLF");
+    });
+
     it("saves name to sessionStorage when name is provided alongside the code", () => {
       render(<Home />);
       fireEvent.change(screen.getByPlaceholderText(/e\.g\. Leon/i), {

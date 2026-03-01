@@ -12,6 +12,8 @@ interface Props {
   restartVotes: string[];
   onRequestRestart: () => void;
   onCancelRestart: () => void;
+  mySubmittedWord: string | null;
+  onRetract: () => void;
 }
 
 const HISTORY_VISIBLE = 4;
@@ -27,6 +29,8 @@ export default function Playing({
   restartVotes,
   onRequestRestart,
   onCancelRestart,
+  mySubmittedWord,
+  onRetract,
 }: Props) {
   const [word, setWord] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -130,9 +134,27 @@ export default function Playing({
         )}
       </div>
 
+      {/* First-round hint — shown only before any round has completed */}
+      {roundHistory.length === 0 && !hasSubmitted && (
+        <p className="text-xs text-[var(--muted)]">Think of the same word as everyone else.</p>
+      )}
+
       {/* Input */}
       {hasSubmitted ? (
-        <p className="text-sm text-[var(--muted)] py-2">Waiting for others…</p>
+        <div className="space-y-2 py-1">
+          <span className="font-mono font-bold text-xl leading-none break-all">{mySubmittedWord}</span>
+          <div>
+            <button
+              onClick={() => {
+                setWord(mySubmittedWord ?? "");
+                onRetract();
+              }}
+              className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            >
+              Change
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="space-y-3">
           <input

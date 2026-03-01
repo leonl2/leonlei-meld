@@ -28,6 +28,8 @@ const NO_VOTE = {
   restartVotes: [] as string[],
   onRequestRestart: vi.fn(),
   onCancelRestart: vi.fn(),
+  mySubmittedWord: null as string | null,
+  onRetract: vi.fn(),
 };
 
 describe("Playing", () => {
@@ -167,7 +169,7 @@ describe("Playing", () => {
   });
 
   describe("word input — already submitted", () => {
-    it("hides the input and shows a waiting message after submission", () => {
+    it("hides the input and shows the submitted word after submission", () => {
       render(
         <Playing
           players={PLAYERS_ALICE_SUBMITTED}
@@ -176,12 +178,48 @@ describe("Playing", () => {
           onSubmit={vi.fn()}
           myId="p1"
           {...NO_VOTE}
+          mySubmittedWord="apple"
+          onRetract={vi.fn()}
         />
       );
       expect(
         screen.queryByPlaceholderText(/type a word/i)
       ).not.toBeInTheDocument();
-      expect(screen.getByText(/waiting for others/i)).toBeInTheDocument();
+      expect(screen.getByText("apple")).toBeInTheDocument();
+    });
+
+    it("shows a Change button when submitted", () => {
+      render(
+        <Playing
+          players={PLAYERS_ALICE_SUBMITTED}
+          roundHistory={[]}
+          error={null}
+          onSubmit={vi.fn()}
+          myId="p1"
+          {...NO_VOTE}
+          mySubmittedWord="apple"
+          onRetract={vi.fn()}
+        />
+      );
+      expect(screen.getByRole("button", { name: /change/i })).toBeInTheDocument();
+    });
+
+    it("clicking Change calls onRetract", () => {
+      const onRetract = vi.fn();
+      render(
+        <Playing
+          players={PLAYERS_ALICE_SUBMITTED}
+          roundHistory={[]}
+          error={null}
+          onSubmit={vi.fn()}
+          myId="p1"
+          {...NO_VOTE}
+          mySubmittedWord="apple"
+          onRetract={onRetract}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /change/i }));
+      expect(onRetract).toHaveBeenCalledOnce();
     });
   });
 
@@ -296,6 +334,8 @@ describe("Playing", () => {
           restartVotes={[]}
           onRequestRestart={onRequestRestart}
           onCancelRestart={vi.fn()}
+          mySubmittedWord={null}
+          onRetract={vi.fn()}
         />
       );
       fireEvent.click(screen.getByRole("button", { name: /restart/i }));
@@ -313,6 +353,8 @@ describe("Playing", () => {
           restartVotes={["p1"]}
           onRequestRestart={vi.fn()}
           onCancelRestart={vi.fn()}
+          mySubmittedWord={null}
+          onRetract={vi.fn()}
         />
       );
       expect(screen.getByRole("button", { name: /agree/i })).toBeInTheDocument();
@@ -330,6 +372,8 @@ describe("Playing", () => {
           restartVotes={["p1"]}
           onRequestRestart={vi.fn()}
           onCancelRestart={vi.fn()}
+          mySubmittedWord={null}
+          onRetract={vi.fn()}
         />
       );
       expect(screen.getByText(/waiting for/i)).toBeInTheDocument();
@@ -348,6 +392,8 @@ describe("Playing", () => {
           restartVotes={["p1"]}
           onRequestRestart={vi.fn()}
           onCancelRestart={onCancelRestart}
+          mySubmittedWord={null}
+          onRetract={vi.fn()}
         />
       );
       fireEvent.click(screen.getByRole("button", { name: /nope/i }));
@@ -366,6 +412,8 @@ describe("Playing", () => {
           restartVotes={["p1"]}
           onRequestRestart={vi.fn()}
           onCancelRestart={onCancelRestart}
+          mySubmittedWord={null}
+          onRetract={vi.fn()}
         />
       );
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }));

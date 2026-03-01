@@ -710,6 +710,70 @@ describe("restart vote", () => {
 });
 
 // ---------------------------------------------------------------------------
+// retract
+// ---------------------------------------------------------------------------
+
+describe("retract", () => {
+  it("un-submits the player and broadcasts updated state", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    expect(env.getState().playerSubmitted["p1"]).toBe(true);
+
+    await send(env.room, env.ws1, { type: "retract" });
+    expect(env.getState().playerSubmitted["p1"]).toBe(false);
+    expect(env.getState().currentSubmissions["p1"]).toBeUndefined();
+
+    const broadcast = lastBroadcast(env.ws2);
+    expect(broadcast?.type).toBe("state");
+    const alice = broadcast?.players?.find((p: any) => p.id === "p1");
+    expect(alice?.submitted).toBe(false);
+  });
+
+  it("is a no-op when the player has not submitted", async () => {
+    const env = await twoPlayersPlaying();
+    const callsBefore = (env.ws1.send as any).mock.calls.length;
+
+    await send(env.room, env.ws1, { type: "retract" });
+
+    // No broadcast should have been sent after the retract
+    expect((env.ws1.send as any).mock.calls.length).toBe(callsBefore);
+  });
+
+  it("is a no-op when phase is lobby", async () => {
+    const env = await twoPlayersInLobby();
+    const callsBefore = (env.ws1.send as any).mock.calls.length;
+
+    await send(env.room, env.ws1, { type: "retract" });
+
+    expect((env.ws1.send as any).mock.calls.length).toBe(callsBefore);
+  });
+
+  it("allows resubmitting a different word after retract", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    await send(env.room, env.ws1, { type: "retract" });
+    await send(env.room, env.ws1, { type: "submit", word: "banana" });
+
+    expect(env.getState().currentSubmissions["p1"]).toBe("banana");
+    expect(env.getState().playerSubmitted["p1"]).toBe(true);
+  });
+
+  it("round does not resolve when retracted player has not resubmitted", async () => {
+    const env = await twoPlayersPlaying();
+    // Alice submits then retracts (Bob has not submitted yet)
+    await send(env.room, env.ws1, { type: "submit", word: "apple" });
+    await send(env.room, env.ws1, { type: "retract" });
+    // Bob submits — only Bob has submitted now, round must NOT resolve
+    await send(env.room, env.ws2, { type: "submit", word: "apple" });
+
+    expect(env.getState().roundHistory).toHaveLength(0);
+    expect(env.getState().phase).toBe("playing");
+    expect(env.getState().playerSubmitted["p1"]).toBe(false);
+    expect(env.getState().playerSubmitted["p2"]).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // ping / pong
 // ---------------------------------------------------------------------------
 

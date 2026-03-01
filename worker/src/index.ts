@@ -154,6 +154,15 @@ export class GameRoom extends DurableObject {
         break;
       }
 
+      case "retract": {
+        if (state.phase !== "playing" || !state.playerSubmitted[playerId]) return;
+        delete state.currentSubmissions[playerId];
+        state.playerSubmitted[playerId] = false;
+        await this.save(state);
+        this.broadcastState(state);
+        break;
+      }
+
       case "restart_request": {
         if (state.phase !== "playing") break;
         if (!state.restartVotes.includes(playerId)) {

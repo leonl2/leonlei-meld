@@ -36,6 +36,7 @@ export type ClientMessage =
   | { type: "join"; playerName: string }
   | { type: "start"; winCondition?: WinCondition }
   | { type: "submit"; word: string }
+  | { type: "retract" }
   | { type: "reset" }
   | { type: "restart_request" }
   | { type: "restart_cancel" }

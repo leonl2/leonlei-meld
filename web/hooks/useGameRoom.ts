@@ -34,6 +34,7 @@ export function useGameRoom(roomCode: string, playerName: string) {
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
+  const [mySubmittedWord, setMySubmittedWord] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const sendRef = useRef<(msg: object) => void>(() => {});
 
@@ -98,6 +99,7 @@ export function useGameRoom(roomCode: string, playerName: string) {
         if (!mountedRef.current) return;
         setConnected(false);
         setMyId(null);
+        setMySubmittedWord(null);
         setState((prev) => ({ ...prev, phase: "connecting", restartVotes: [] }));
         reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
       };
@@ -117,13 +119,32 @@ export function useGameRoom(roomCode: string, playerName: string) {
 
   const send = useCallback((msg: object) => sendRef.current(msg), []);
 
+  // Clear submitted word when a new round starts (history grows) or game restarts (history resets)
+  const prevRoundHistoryLen = useRef(0);
+  useEffect(() => {
+    const newLen = state.roundHistory.length;
+    const prevLen = prevRoundHistoryLen.current;
+    prevRoundHistoryLen.current = newLen;
+    if (newLen > prevLen || (newLen === 0 && prevLen > 0)) {
+      setTimeout(() => setMySubmittedWord(null), 0);
+    }
+  }, [state.roundHistory.length]);
+
   return {
     state,
     error,
     connected,
     myId,
+    mySubmittedWord,
     start: () => send({ type: "start" }),
-    submit: (word: string) => send({ type: "submit", word }),
+    submit: (word: string) => {
+      setMySubmittedWord(word);
+      send({ type: "submit", word });
+    },
+    retract: () => {
+      setMySubmittedWord(null);
+      send({ type: "retract" });
+    },
     reset: () => send({ type: "reset" }),
     requestRestart: () => send({ type: "restart_request" }),
     cancelRestart: () => send({ type: "restart_cancel" }),

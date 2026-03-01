@@ -18,7 +18,7 @@ export default function RoomPage() {
     () => !!sessionStorage.getItem("meld_name")
   );
 
-  const { state, error, connected, myId, start, submit, reset, requestRestart, cancelRestart } = useGameRoom(code, playerName);
+  const { state, error, connected, myId, mySubmittedWord, start, submit, retract, reset, requestRestart, cancelRestart } = useGameRoom(code, playerName);
 
   function confirmName() {
     const trimmed = nameInput.trim();
@@ -35,6 +35,7 @@ export default function RoomPage() {
           <h2 className="text-2xl font-bold">
             Join room <span className="font-mono text-[var(--accent)]">{code}</span>
           </h2>
+          <p className="text-sm text-[var(--muted)]">Think of the same word as everyone else — no hints, no clues.</p>
           <input
             type="text"
             value={nameInput}
@@ -94,6 +95,8 @@ export default function RoomPage() {
           restartVotes={state.restartVotes}
           onRequestRestart={requestRestart}
           onCancelRestart={cancelRestart}
+          mySubmittedWord={mySubmittedWord}
+          onRetract={retract}
         />
       )}
 

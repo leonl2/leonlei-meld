@@ -587,46 +587,69 @@ describe("broadcastState (unnamed player filtering)", () => {
 // reset
 // ---------------------------------------------------------------------------
 
-describe("reset", () => {
-  it("starts a fresh game in the playing phase", async () => {
+describe("reset_request / reset_cancel", () => {
+  async function twoPlayersWon() {
     const env = await twoPlayersPlaying();
-    // Win the game first
     await send(env.room, env.ws1, { type: "submit", word: "meld" });
     await send(env.room, env.ws2, { type: "submit", word: "meld" });
     expect(env.getState().phase).toBe("won");
+    return env;
+  }
 
-    await send(env.room, env.ws1, { type: "reset" });
+  it("is a no-op when the game is not in the won phase", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "reset_request" });
+    expect(env.getState().restartVotes ?? []).toHaveLength(0);
     expect(env.getState().phase).toBe("playing");
   });
 
-  it("preserves the names of currently connected players", async () => {
-    const env = await twoPlayersPlaying();
-    await send(env.room, env.ws1, { type: "submit", word: "meld" });
-    await send(env.room, env.ws2, { type: "submit", word: "meld" });
+  it("records a reset vote without starting a new game while only one player has voted", async () => {
+    const env = await twoPlayersWon();
+    await send(env.room, env.ws1, { type: "reset_request" });
+    expect(env.getState().restartVotes).toContain("p1");
+    expect(env.getState().phase).toBe("won");
+  });
 
-    await send(env.room, env.ws1, { type: "reset" });
+  it("starts a fresh game when all players have voted to reset", async () => {
+    const env = await twoPlayersWon();
+    await send(env.room, env.ws1, { type: "reset_request" });
+    await send(env.room, env.ws2, { type: "reset_request" });
+    const state = env.getState();
+    expect(state.phase).toBe("playing");
+    expect(state.roundHistory).toHaveLength(0);
+    expect(state.usedWords).toHaveLength(0);
+    expect(state.restartVotes).toHaveLength(0);
+  });
+
+  it("preserves player names after a unanimous reset", async () => {
+    const env = await twoPlayersWon();
+    await send(env.room, env.ws1, { type: "reset_request" });
+    await send(env.room, env.ws2, { type: "reset_request" });
     expect(env.getState().playerNames["p1"]).toBe("Alice");
     expect(env.getState().playerNames["p2"]).toBe("Bob");
   });
 
-  it("clears round history and used words", async () => {
-    const env = await twoPlayersPlaying();
-    await send(env.room, env.ws1, { type: "submit", word: "meld" });
-    await send(env.room, env.ws2, { type: "submit", word: "meld" });
-
-    await send(env.room, env.ws1, { type: "reset" });
-    expect(env.getState().roundHistory).toHaveLength(0);
-    expect(env.getState().usedWords).toHaveLength(0);
+  it("cancel clears all reset votes", async () => {
+    const env = await twoPlayersWon();
+    await send(env.room, env.ws1, { type: "reset_request" });
+    await send(env.room, env.ws1, { type: "reset_cancel" });
+    expect(env.getState().restartVotes).toHaveLength(0);
+    expect(env.getState().phase).toBe("won");
   });
 
-  it("excludes unnamed (still-connecting) players from the reset game", async () => {
-    const { room, connect, getState } = createTestRoom();
-    const ws1 = connect("p1");
-    connect("p2"); // connected but never sent join
-    await send(room, ws1, { type: "join", playerName: "Alice" });
-    await send(room, ws1, { type: "reset" });
+  it("cancel is a no-op when not in won phase", async () => {
+    const env = await twoPlayersPlaying();
+    await send(env.room, env.ws1, { type: "restart_request" });
+    await send(env.room, env.ws1, { type: "reset_cancel" });
+    // restartVotes for the playing-phase restart should be unaffected
+    expect(env.getState().restartVotes).toContain("p1");
+  });
 
-    expect(Object.keys(getState().playerNames)).toEqual(["p1"]);
+  it("includes reset votes in broadcast state", async () => {
+    const env = await twoPlayersWon();
+    await send(env.room, env.ws1, { type: "reset_request" });
+    const broadcast = lastBroadcast(env.ws2);
+    expect(broadcast?.restartVotes).toContain("p1");
   });
 });
 

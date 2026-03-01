@@ -16,6 +16,7 @@ interface Props {
   onRetract: () => void;
 }
 
+const MAX_VISIBLE_ROWS = 5;
 
 export default function Playing({
   players,
@@ -52,6 +53,10 @@ export default function Playing({
     return cols;
   }, [roundHistory, myId]);
 
+  // Most recent MAX_VISIBLE_ROWS rounds; round numbers remain real (e.g. 4–8 of 8)
+  const visibleHistory = roundHistory.slice(-MAX_VISIBLE_ROWS);
+  const firstRoundNumber = roundHistory.length - visibleHistory.length + 1;
+
   const voteActive = restartVotes.length > 0;
   const iHaveVoted = myId !== null && restartVotes.includes(myId);
   const pendingPlayers = players.filter((p) => !restartVotes.includes(p.id));
@@ -77,190 +82,200 @@ export default function Playing({
   }
 
   return (
-    <div className="animate-fade-up flex flex-col gap-6">
+    <div className="animate-fade-up flex flex-col flex-1">
 
-      {/* Round history table */}
-      {roundHistory.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border)]">
-                <th className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 pr-4">#</th>
-                {playerColumns.map((col) => (
-                  <th
-                    key={col.id}
-                    className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 px-4"
-                  >
-                    {col.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {roundHistory.map((round, i) => {
-                const age = roundHistory.length - 1 - i;
-                const opacity = [1, 0.45, 0.2, 0.1][Math.min(age, 3)];
-                const isNewest = age === 0;
-                return (
-                  <tr
-                    key={i}
-                    className={`border-b border-[var(--border)] last:border-0 ${isNewest ? "animate-pop font-bold text-base" : "font-semibold text-sm"}`}
-                    style={{ opacity }}
-                  >
-                    <td className="py-2.5 pr-4 font-mono text-xs text-[var(--muted)]">{i + 1}</td>
-                    {playerColumns.map((col) => {
-                      const sub = round.submissions.find((s) => s.id === col.id);
-                      return (
-                        <td key={col.id} className="py-2.5 px-4 font-mono">
-                          {sub?.word ?? "—"}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* Top section: history + status */}
+      <div className="flex flex-col gap-6">
 
-      {/* Divider when there's history */}
-      {roundHistory.length > 0 && (
-        <div className="border-t border-[var(--border)]" />
-      )}
-
-      {/* Current round status */}
-      <div className="flex gap-4">
-        {players.map((p) => (
-          <div key={p.id} className="flex items-center gap-1.5 text-sm">
-            <span
-              className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
-                p.submitted ? "bg-[var(--accent)]" : "bg-[var(--border)]"
-              }`}
-            />
-            <span className={p.submitted ? "text-[var(--foreground)]" : "text-[var(--muted)]"}>
-              {p.name}
-            </span>
+        {/* Round history table */}
+        {visibleHistory.length > 0 && (
+          <div className="overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)]">
+                  <th className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 pr-4">#</th>
+                  {playerColumns.map((col) => (
+                    <th
+                      key={col.id}
+                      className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 px-4"
+                    >
+                      {col.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {visibleHistory.map((round, i) => {
+                  const age = visibleHistory.length - 1 - i;
+                  const opacity = [1, 0.45, 0.2, 0.1][Math.min(age, 3)];
+                  const isNewest = age === 0;
+                  return (
+                    <tr
+                      key={firstRoundNumber + i}
+                      className={`border-b border-[var(--border)] last:border-0 ${isNewest ? "animate-pop font-bold text-base" : "font-semibold text-sm"}`}
+                      style={{ opacity }}
+                    >
+                      <td className="py-2.5 pr-4 font-mono text-xs text-[var(--muted)]">{firstRoundNumber + i}</td>
+                      {playerColumns.map((col) => {
+                        const sub = round.submissions.find((s) => s.id === col.id);
+                        return (
+                          <td key={col.id} className="py-2.5 px-4 font-mono">
+                            {sub?.word ?? "—"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        ))}
-        {players.length >= 2 && (
-          <span className="text-xs text-[var(--muted)] ml-auto self-center">
-            {submittedCount}/{players.length}
-          </span>
         )}
+
+        {/* Divider when there's history */}
+        {visibleHistory.length > 0 && (
+          <div className="border-t border-[var(--border)]" />
+        )}
+
+        {/* Current round status */}
+        <div className="flex gap-4">
+          {players.map((p) => (
+            <div key={p.id} className="flex items-center gap-1.5 text-sm">
+              <span
+                className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
+                  p.submitted ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+                }`}
+              />
+              <span className={p.submitted ? "text-[var(--foreground)]" : "text-[var(--muted)]"}>
+                {p.name}
+              </span>
+            </div>
+          ))}
+          {players.length >= 2 && (
+            <span className="text-xs text-[var(--muted)] ml-auto self-center">
+              {submittedCount}/{players.length}
+            </span>
+          )}
+        </div>
+
+        {/* First-round hint — shown only before any round has completed */}
+        {roundHistory.length === 0 && !hasSubmitted && (
+          <p className="text-xs text-[var(--muted)]">Think of the same word as everyone else.</p>
+        )}
+
       </div>
 
-      {/* First-round hint — shown only before any round has completed */}
-      {roundHistory.length === 0 && !hasSubmitted && (
-        <p className="text-xs text-[var(--muted)]">Think of the same word as everyone else.</p>
-      )}
+      {/* Bottom section: input + restart — pushed to bottom via mt-auto */}
+      <div className="mt-auto flex flex-col gap-4 pt-6">
 
-      {/* Input */}
-      {hasSubmitted ? (
-        <div className="space-y-2 py-1">
-          <span className="font-mono font-bold text-xl leading-none break-all">{mySubmittedWord}</span>
-          <div>
-            <button
-              onClick={() => {
-                setWord(mySubmittedWord ?? "");
-                onRetract();
-              }}
-              className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-            >
-              Change
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <input
-            ref={inputRef}
-            type="text"
-            value={word}
-            onChange={(e) => setWord(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            placeholder={roundHistory.length === 0 ? "Type a word…" : "Think of a common thread…"}
-            autoFocus
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            className="w-full px-4 py-3 border border-[var(--border)] rounded-xl bg-white text-sm focus:outline-none focus:border-[var(--foreground)] transition-colors"
-          />
-          {error && (
-            <p className="text-xs text-[var(--accent)] font-mono">{error}</p>
-          )}
-          <button
-            onClick={handleSubmit}
-            disabled={!word.trim()}
-            className="w-full py-3 bg-[var(--foreground)] text-white font-medium rounded-xl hover:bg-[var(--accent)] transition-colors text-sm disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            Submit
-          </button>
-        </div>
-      )}
-
-      {/* Restart vote */}
-      {voteActive ? (
-        <div className="border border-[var(--border)] rounded-xl p-3 space-y-2.5 animate-fade-up">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-[var(--muted)]">↺</span>
-            <span className="text-xs font-medium">Restart?</span>
-            <div className="flex gap-2.5 ml-1">
-              {players.map((p) => (
-                <span
-                  key={p.id}
-                  className={`flex items-center gap-1 text-xs ${
-                    restartVotes.includes(p.id) ? "text-[var(--foreground)]" : "text-[var(--muted)]"
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      restartVotes.includes(p.id) ? "bg-[var(--foreground)]" : "bg-[var(--border)]"
-                    }`}
-                  />
-                  {p.name}
-                </span>
-              ))}
-            </div>
-          </div>
-          {iHaveVoted ? (
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[var(--muted)]">
-                Waiting for {pendingPlayers.map((p) => p.name).join(", ")}…
-              </span>
+        {/* Input */}
+        {hasSubmitted ? (
+          <div className="space-y-2 py-1">
+            <span className="font-mono font-bold text-xl leading-none break-all">{mySubmittedWord}</span>
+            <div>
               <button
-                onClick={onCancelRestart}
+                onClick={() => {
+                  setWord(mySubmittedWord ?? "");
+                  onRetract();
+                }}
                 className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
               >
-                Cancel
+                Change
               </button>
             </div>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={onRequestRestart}
-                className="text-xs px-3 py-1.5 bg-[var(--foreground)] text-white rounded-lg hover:bg-[var(--accent)] transition-colors"
-              >
-                Agree
-              </button>
-              <button
-                onClick={onCancelRestart}
-                className="text-xs px-3 py-1.5 border border-[var(--border)] rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-              >
-                Nope
-              </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <input
+              ref={inputRef}
+              type="text"
+              value={word}
+              onChange={(e) => setWord(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              placeholder={roundHistory.length === 0 ? "Type a word…" : "Think of a common thread…"}
+              autoFocus
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              className="w-full px-4 py-3 border border-[var(--border)] rounded-xl bg-white text-sm focus:outline-none focus:border-[var(--foreground)] transition-colors"
+            />
+            {error && (
+              <p className="text-xs text-[var(--accent)] font-mono">{error}</p>
+            )}
+            <button
+              onClick={handleSubmit}
+              disabled={!word.trim()}
+              className="w-full py-3 bg-[var(--foreground)] text-white font-medium rounded-xl hover:bg-[var(--accent)] transition-colors text-sm disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              Submit
+            </button>
+          </div>
+        )}
+
+        {/* Restart vote */}
+        {voteActive ? (
+          <div className="border border-[var(--border)] rounded-xl p-3 space-y-2.5 animate-fade-up">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-[var(--muted)]">↺</span>
+              <span className="text-xs font-medium">Restart?</span>
+              <div className="flex gap-2.5 ml-1">
+                {players.map((p) => (
+                  <span
+                    key={p.id}
+                    className={`flex items-center gap-1 text-xs ${
+                      restartVotes.includes(p.id) ? "text-[var(--foreground)]" : "text-[var(--muted)]"
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        restartVotes.includes(p.id) ? "bg-[var(--foreground)]" : "bg-[var(--border)]"
+                      }`}
+                    />
+                    {p.name}
+                  </span>
+                ))}
+              </div>
             </div>
-          )}
-        </div>
-      ) : (
-        <button
-          onClick={onRequestRestart}
-          className="self-start text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mt-1"
-          aria-label="Request restart"
-        >
-          ↺ restart
-        </button>
-      )}
+            {iHaveVoted ? (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--muted)]">
+                  Waiting for {pendingPlayers.map((p) => p.name).join(", ")}…
+                </span>
+                <button
+                  onClick={onCancelRestart}
+                  className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={onRequestRestart}
+                  className="text-xs px-3 py-1.5 bg-[var(--foreground)] text-white rounded-lg hover:bg-[var(--accent)] transition-colors"
+                >
+                  Agree
+                </button>
+                <button
+                  onClick={onCancelRestart}
+                  className="text-xs px-3 py-1.5 border border-[var(--border)] rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  Nope
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={onRequestRestart}
+            className="self-start text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            aria-label="Request restart"
+          >
+            ↺ restart
+          </button>
+        )}
+
+      </div>
     </div>
   );
 }

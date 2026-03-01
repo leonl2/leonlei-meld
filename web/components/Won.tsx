@@ -1,16 +1,16 @@
-import { RoundEntry } from "@/hooks/useGameRoom";
+import { Player, RoundEntry } from "@/hooks/useGameRoom";
 
 interface Props {
   roundHistory: RoundEntry[];
-  onReset: () => void;
   myId?: string | null;
+  players: Player[];
+  resetVotes: string[];
+  onRequestReset: () => void;
+  onCancelReset: () => void;
 }
 
-export default function Won({ roundHistory, onReset, myId }: Props) {
+export default function Won({ roundHistory, myId, players, resetVotes, onRequestReset, onCancelReset }: Props) {
   // Derive player columns from the union of all rounds, in first-appearance order.
-  // This handles the case where a player left and was replaced mid-game — the
-  // replacement player has a different id and would be invisible if we only
-  // looked at the first round.
   // Fall back to name when id is missing (rounds persisted before the id field was added).
   const seenKeys = new Set<string>();
   const playerColumns: { id: string; name: string }[] = [];
@@ -30,6 +30,9 @@ export default function Won({ roundHistory, onReset, myId }: Props) {
   }
 
   const rounds = roundHistory.length;
+  const voteActive = resetVotes.length > 0;
+  const iHaveVoted = myId != null && resetVotes.includes(myId);
+  const pendingPlayers = players.filter((p) => !resetVotes.includes(p.id));
 
   return (
     <div className="animate-pop space-y-8">
@@ -44,7 +47,7 @@ export default function Won({ roundHistory, onReset, myId }: Props) {
       </div>
 
       {/* Summary table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border)]">
@@ -73,12 +76,9 @@ export default function Won({ roundHistory, onReset, myId }: Props) {
                   {i + 1}
                 </td>
                 {playerColumns.map((col) => {
-                  // Match by id when both sides have one; fall back to name for old persisted state
                   const sub = round.submissions.find((s) =>
                     col.id && s.id ? s.id === col.id : s.name === col.name
                   );
-                  // Show ✓ only on the winning word. For data persisted before
-                  // winningWord was added, fall back to marking all cells in a won round.
                   const showCheck = sub !== undefined && (
                     round.winningWord !== undefined
                       ? sub.word === round.winningWord
@@ -97,12 +97,66 @@ export default function Won({ roundHistory, onReset, myId }: Props) {
         </table>
       </div>
 
-      <button
-        onClick={onReset}
-        className="w-full py-3 bg-[var(--accent)] text-white font-medium rounded-xl hover:opacity-90 transition-opacity text-sm"
-      >
-        Play again
-      </button>
+      {/* Play again — vote required */}
+      {voteActive ? (
+        <div className="border border-[var(--border)] rounded-xl p-3 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium">Play again?</span>
+            <div className="flex gap-2.5 ml-1">
+              {players.map((p) => (
+                <span
+                  key={p.id}
+                  className={`flex items-center gap-1 text-xs ${
+                    resetVotes.includes(p.id) ? "text-[var(--foreground)]" : "text-[var(--muted)]"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      resetVotes.includes(p.id) ? "bg-[var(--foreground)]" : "bg-[var(--border)]"
+                    }`}
+                  />
+                  {p.name}
+                </span>
+              ))}
+            </div>
+          </div>
+          {iHaveVoted ? (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[var(--muted)]">
+                Waiting for {pendingPlayers.map((p) => p.name).join(", ")}…
+              </span>
+              <button
+                onClick={onCancelReset}
+                className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={onRequestReset}
+                className="text-xs px-3 py-1.5 bg-[var(--foreground)] text-white rounded-lg hover:bg-[var(--accent)] transition-colors"
+              >
+                Agree
+              </button>
+              <button
+                onClick={onCancelReset}
+                className="text-xs px-3 py-1.5 border border-[var(--border)] rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                Nope
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={onRequestReset}
+          className="w-full py-3 bg-[var(--accent)] text-white font-medium rounded-xl hover:opacity-90 transition-opacity text-sm"
+        >
+          Play again
+        </button>
+      )}
     </div>
   );
 }

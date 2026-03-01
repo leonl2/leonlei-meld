@@ -208,20 +208,37 @@ export class GameRoom extends DurableObject {
         break;
       }
 
-      case "reset": {
-        const ids = this.connectedIds().filter((id) => state.playerNames[id] !== undefined);
-        const fresh: PersistedState = {
-          phase: "playing",
-          playerNames: Object.fromEntries(ids.map((id) => [id, state.playerNames[id]])),
-          playerSubmitted: Object.fromEntries(ids.map((id) => [id, false])),
-          usedWords: [],
-          currentSubmissions: {},
-          roundHistory: [],
-          restartVotes: [],
-          config: state.config,
-        };
-        await this.save(fresh);
-        this.broadcastState(fresh);
+      case "reset_request": {
+        if (state.phase !== "won") break;
+        if (!state.restartVotes.includes(playerId)) {
+          state.restartVotes.push(playerId);
+        }
+        const namedPlayers = this.connectedIds().filter((id) => state.playerNames[id] !== undefined);
+        if (namedPlayers.length > 0 && namedPlayers.every((id) => state.restartVotes.includes(id))) {
+          const fresh: PersistedState = {
+            phase: "playing",
+            playerNames: Object.fromEntries(namedPlayers.map((id) => [id, state.playerNames[id]])),
+            playerSubmitted: Object.fromEntries(namedPlayers.map((id) => [id, false])),
+            usedWords: [],
+            currentSubmissions: {},
+            roundHistory: [],
+            restartVotes: [],
+            config: state.config,
+          };
+          await this.save(fresh);
+          this.broadcastState(fresh);
+        } else {
+          await this.save(state);
+          this.broadcastState(state);
+        }
+        break;
+      }
+
+      case "reset_cancel": {
+        if (state.phase !== "won") break;
+        state.restartVotes = [];
+        await this.save(state);
+        this.broadcastState(state);
         break;
       }
     }

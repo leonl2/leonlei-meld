@@ -18,7 +18,7 @@ export default function RoomPage() {
     () => !!sessionStorage.getItem("meld_name")
   );
 
-  const { state, error, connected, myId, mySubmittedWord, start, submit, retract, reset, requestRestart, cancelRestart } = useGameRoom(code, playerName);
+  const { state, error, connected, myId, mySubmittedWord, start, submit, retract, requestReset, cancelReset, requestRestart, cancelRestart } = useGameRoom(code, playerName);
 
   function confirmName() {
     const trimmed = nameInput.trim();
@@ -103,8 +103,11 @@ export default function RoomPage() {
       {state.phase === "won" && (
         <Won
           roundHistory={state.roundHistory}
-          onReset={reset}
           myId={myId}
+          players={state.players}
+          resetVotes={state.restartVotes}
+          onRequestReset={requestReset}
+          onCancelReset={cancelReset}
         />
       )}
     </main>

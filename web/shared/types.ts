@@ -37,7 +37,8 @@ export type ClientMessage =
   | { type: "start"; winCondition?: WinCondition }
   | { type: "submit"; word: string }
   | { type: "retract" }
-  | { type: "reset" }
+  | { type: "reset_request" }
+  | { type: "reset_cancel" }
   | { type: "restart_request" }
   | { type: "restart_cancel" }
   | { type: "ping" };

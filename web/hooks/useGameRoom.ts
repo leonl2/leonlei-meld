@@ -145,7 +145,8 @@ export function useGameRoom(roomCode: string, playerName: string) {
       setMySubmittedWord(null);
       send({ type: "retract" });
     },
-    reset: () => send({ type: "reset" }),
+    requestReset: () => send({ type: "reset_request" }),
+    cancelReset: () => send({ type: "reset_cancel" }),
     requestRestart: () => send({ type: "restart_request" }),
     cancelRestart: () => send({ type: "restart_cancel" }),
   };

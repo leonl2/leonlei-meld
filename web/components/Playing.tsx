@@ -1,7 +1,7 @@
 "use client";
 
 import { Player, RoundEntry } from "@/hooks/useGameRoom";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 interface Props {
   players: Player[];
@@ -16,9 +16,6 @@ interface Props {
   onRetract: () => void;
 }
 
-const HISTORY_VISIBLE = 4;
-const opacities = [1, 0.35, 0.15, 0.07];
-const sizes = ["", "text-sm", "text-xs", "text-xs"];
 
 export default function Playing({
   players,
@@ -39,6 +36,21 @@ export default function Playing({
   const me = players.find((p) => p.id === myId);
   const hasSubmitted = me?.submitted ?? false;
   const submittedCount = players.filter((p) => p.submitted).length;
+
+  const playerColumns = useMemo(() => {
+    const seen = new Set<string>();
+    const cols: { id: string; name: string }[] = [];
+    for (const round of roundHistory) {
+      for (const sub of round.submissions) {
+        if (!seen.has(sub.id)) { seen.add(sub.id); cols.push({ id: sub.id, name: sub.name }); }
+      }
+    }
+    if (myId) {
+      const idx = cols.findIndex((c) => c.id === myId);
+      if (idx > 0) { const [self] = cols.splice(idx, 1); cols.unshift(self); }
+    }
+    return cols;
+  }, [roundHistory, myId]);
 
   const voteActive = restartVotes.length > 0;
   const iHaveVoted = myId !== null && restartVotes.includes(myId);
@@ -64,52 +76,56 @@ export default function Playing({
     onSubmit(trimmed);
   }
 
-  // Most recent round first
-  const visibleHistory = [...roundHistory].reverse().slice(0, HISTORY_VISIBLE);
-
   return (
     <div className="animate-fade-up flex flex-col gap-6">
 
-      {/* Word history waterfall */}
-      {visibleHistory.length > 0 && (
-        <div className="space-y-3">
-          {visibleHistory.map((round, i) => (
-            <div
-              key={roundHistory.length - i}
-              className={`transition-all duration-500 ${sizes[i]} ${i === 0 ? "animate-pop" : ""}`}
-              style={{ opacity: opacities[i] }}
-            >
-              {i === 0 ? (
-                /* Most recent round: large words with names clearly labelled below.
-                   Border separator between submissions stops long words from merging visually. */
-                <div className="flex flex-wrap gap-y-2">
-                  {round.submissions.map((s, j) => (
-                    <div
-                      key={s.id}
-                      className={`flex flex-col gap-0.5 ${j > 0 ? "border-l border-[var(--border)] pl-5 ml-5" : ""}`}
-                    >
-                      <span className="font-mono font-bold text-xl leading-none break-all">{s.word}</span>
-                      <span className="text-[9px] font-medium uppercase tracking-[0.18em] text-[var(--muted)]">
-                        {s.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                /* Older rounds: compact words only, no names */
-                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                  {round.submissions.map((s) => (
-                    <span key={s.id} className="font-mono font-semibold">{s.word}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+      {/* Round history table */}
+      {roundHistory.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)]">
+                <th className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 pr-4">#</th>
+                {playerColumns.map((col) => (
+                  <th
+                    key={col.id}
+                    className="text-left font-mono text-xs text-[var(--muted)] uppercase tracking-wider py-2 px-4"
+                  >
+                    {col.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {roundHistory.map((round, i) => {
+                const age = roundHistory.length - 1 - i;
+                const opacity = [1, 0.45, 0.2, 0.1][Math.min(age, 3)];
+                const isNewest = age === 0;
+                return (
+                  <tr
+                    key={i}
+                    className={`border-b border-[var(--border)] last:border-0 ${isNewest ? "animate-pop font-bold text-base" : "font-semibold text-sm"}`}
+                    style={{ opacity }}
+                  >
+                    <td className="py-2.5 pr-4 font-mono text-xs text-[var(--muted)]">{i + 1}</td>
+                    {playerColumns.map((col) => {
+                      const sub = round.submissions.find((s) => s.id === col.id);
+                      return (
+                        <td key={col.id} className="py-2.5 px-4 font-mono">
+                          {sub?.word ?? "—"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
       {/* Divider when there's history */}
-      {visibleHistory.length > 0 && (
+      {roundHistory.length > 0 && (
         <div className="border-t border-[var(--border)]" />
       )}
 

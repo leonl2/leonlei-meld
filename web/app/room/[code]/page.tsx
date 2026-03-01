@@ -104,6 +104,7 @@ export default function RoomPage() {
         <Won
           roundHistory={state.roundHistory}
           onReset={reset}
+          myId={myId}
         />
       )}
     </main>

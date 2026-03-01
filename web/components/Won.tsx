@@ -3,9 +3,10 @@ import { RoundEntry } from "@/hooks/useGameRoom";
 interface Props {
   roundHistory: RoundEntry[];
   onReset: () => void;
+  myId?: string | null;
 }
 
-export default function Won({ roundHistory, onReset }: Props) {
+export default function Won({ roundHistory, onReset, myId }: Props) {
   // Derive player columns from the union of all rounds, in first-appearance order.
   // This handles the case where a player left and was replaced mid-game — the
   // replacement player has a different id and would be invisible if we only
@@ -21,6 +22,11 @@ export default function Won({ roundHistory, onReset }: Props) {
         playerColumns.push({ id: sub.id, name: sub.name });
       }
     }
+  }
+
+  if (myId) {
+    const idx = playerColumns.findIndex((c) => c.id === myId);
+    if (idx > 0) { const [me] = playerColumns.splice(idx, 1); playerColumns.unshift(me); }
   }
 
   const rounds = roundHistory.length;

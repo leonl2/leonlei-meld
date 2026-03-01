@@ -12,7 +12,6 @@ export default function Home() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [tab, setTab] = useState<"create" | "join">("create");
   const [error, setError] = useState("");
 
   function saveName() {
@@ -56,50 +55,46 @@ export default function Home() {
               type="text"
               value={name}
               onChange={(e) => { setName(e.target.value); setError(""); }}
-              onKeyDown={(e) => e.key === "Enter" && (tab === "create" ? handleCreate() : handleJoin())}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               placeholder="e.g. Leon"
               maxLength={20}
               className="w-full px-4 py-3 border border-[var(--border)] rounded-xl bg-white text-sm focus:outline-none focus:border-[var(--foreground)] transition-colors"
             />
           </div>
 
-          <div className="flex rounded-xl border border-[var(--border)] overflow-hidden text-sm">
-            {(["create", "join"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`flex-1 py-2.5 font-medium transition-colors capitalize ${
-                  tab === t
-                    ? "bg-[var(--foreground)] text-white"
-                    : "text-[var(--muted)] hover:text-[var(--foreground)]"
-                }`}
-              >
-                {t === "create" ? "Create room" : "Join room"}
-              </button>
-            ))}
+          <button
+            onClick={handleCreate}
+            className="w-full py-3 bg-[var(--accent)] text-white font-medium rounded-xl hover:opacity-90 transition-opacity text-sm"
+          >
+            Create room
+          </button>
+
+          <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+            <div className="flex-1 border-t border-[var(--border)]" />
+            <span>or</span>
+            <div className="flex-1 border-t border-[var(--border)]" />
           </div>
 
-          {tab === "join" && (
+          <div className="flex gap-2">
             <input
               type="text"
               value={joinCode}
               onChange={(e) => { setJoinCode(e.target.value.toUpperCase().slice(0, 4)); setError(""); }}
               onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-              placeholder="Room code (e.g. WOLF)"
-              className="w-full px-4 py-3 border border-[var(--border)] rounded-xl bg-white text-sm font-mono tracking-widest uppercase focus:outline-none focus:border-[var(--foreground)] transition-colors"
+              placeholder="WOLF"
+              className="flex-1 px-4 py-3 border border-[var(--border)] rounded-xl bg-white text-sm font-mono tracking-widest uppercase focus:outline-none focus:border-[var(--foreground)] transition-colors"
             />
-          )}
+            <button
+              onClick={handleJoin}
+              className="px-5 py-3 border border-[var(--foreground)] text-[var(--foreground)] font-medium rounded-xl hover:bg-[var(--foreground)] hover:text-white transition-colors text-sm"
+            >
+              Join room
+            </button>
+          </div>
 
           {error && (
             <p className="text-xs text-[var(--accent)] font-mono">{error}</p>
           )}
-
-          <button
-            onClick={tab === "create" ? handleCreate : handleJoin}
-            className="w-full py-3 bg-[var(--accent)] text-white font-medium rounded-xl hover:opacity-90 transition-opacity text-sm"
-          >
-            {tab === "create" ? "Create room" : "Join room"}
-          </button>
         </div>
       </div>
     </main>

@@ -273,7 +273,7 @@ describe("Playing", () => {
       expect(screen.getByText("banana")).toBeInTheDocument();
     });
 
-    it("shows player names below words in the most recent round", () => {
+    it("shows player names as column headers in the history table", () => {
       render(
         <Playing
           players={PLAYERS}

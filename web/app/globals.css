@@ -41,3 +41,10 @@ body {
   100% { transform: scale(1);    opacity: 1; }
 }
 .animate-pop { animation: pop 0.35s ease forwards; }
+
+/* Prevent iOS auto-zoom on input focus */
+@media screen and (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px;
+  }
+}

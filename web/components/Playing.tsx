@@ -82,7 +82,7 @@ export default function Playing({
   }
 
   return (
-    <div className="animate-fade-up flex flex-col flex-1">
+    <div className="animate-fade-up flex flex-col">
 
       {/* Top section: history + status */}
       <div className="flex flex-col gap-6">
@@ -165,8 +165,8 @@ export default function Playing({
 
       </div>
 
-      {/* Bottom section: input + restart — pushed to bottom via mt-auto */}
-      <div className="mt-auto flex flex-col gap-4 pt-6">
+      {/* Bottom section: input + restart */}
+      <div className="mt-8 flex flex-col gap-4">
 
         {/* Input */}
         {hasSubmitted ? (
